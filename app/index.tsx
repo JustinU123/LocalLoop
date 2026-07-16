@@ -1,13 +1,14 @@
 import { Href, Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { getAccountTypeFromMetadata } from '@/utils/account-type';
 import { getCurrentSession } from '@/utils/auth';
 import { isOnboardingComplete } from '@/utils/onboarding-storage';
 
 export default function Index() {
+  const { theme } = useAppTheme();
   const [ready, setReady] = useState(false);
   const [destination, setDestination] = useState<Href>('/onboarding/splash');
 
@@ -71,20 +72,11 @@ export default function Index() {
 
   if (!ready) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={T.emerald} />
+      <View style={{ flex: 1, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={theme.emerald} />
       </View>
     );
   }
 
   return <Redirect href={destination} />;
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    backgroundColor: T.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

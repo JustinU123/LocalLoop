@@ -11,11 +11,10 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
-import { BusinessTheme as T } from '@/constants/business-theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootNavigation() {
+  const { theme, isReady } = useAppTheme();
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -23,33 +22,65 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
   });
 
-  if (!fontsLoaded) {
+  const navigationTheme = theme.isDark
+    ? {
+        ...DarkTheme,
+        colors: {
+          ...DarkTheme.colors,
+          background: theme.bg,
+          card: theme.surface,
+          border: theme.border,
+          text: theme.text,
+          primary: theme.emerald,
+        },
+      }
+    : {
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          background: theme.bg,
+          card: theme.surface,
+          border: theme.border,
+          text: theme.text,
+          primary: theme.emerald,
+        },
+      };
+
+  if (!isReady || !fontsLoaded) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={T.emerald} />
-        <StatusBar style="light" />
+      <View style={[styles.loading, { backgroundColor: theme.bg }]}>
+        <ActivityIndicator color={theme.emerald} />
+        <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       </View>
     );
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navigationTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppThemeProvider>
+      <RootNavigation />
+    </AppThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
-    backgroundColor: T.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },

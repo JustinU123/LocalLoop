@@ -18,7 +18,9 @@ import {
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BrandFonts, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   Business,
   BusinessReview,
@@ -60,12 +62,15 @@ function CompactActionButton({
   label: string;
   onPress: () => void;
 }) {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useAppTheme();
+
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.compactAction, pressed && styles.compactActionPressed]}>
       <View style={styles.compactActionCircle}>
-        <Ionicons name={icon} size={20} color={T.onEmerald} />
+        <Ionicons name={icon} size={20} color={theme.onEmerald} />
       </View>
       <Text style={styles.compactActionLabel}>{label}</Text>
     </Pressable>
@@ -73,6 +78,9 @@ function CompactActionButton({
 }
 
 function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useAppTheme();
+
   return (
     <View style={styles.starRow}>
       {Array.from({ length: 5 }).map((_, index) => (
@@ -80,7 +88,7 @@ function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
           key={index}
           name={index < Math.floor(rating) ? 'star' : index < rating ? 'star-half' : 'star-outline'}
           size={size}
-          color={T.star}
+          color={theme.star}
         />
       ))}
     </View>
@@ -88,6 +96,9 @@ function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
 }
 
 function VideoFeed({ videos }: { videos: BusinessVideo[] }) {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useAppTheme();
+
   return (
     <View style={styles.videoFeedContainer}>
       <ScrollView
@@ -102,20 +113,20 @@ function VideoFeed({ videos }: { videos: BusinessVideo[] }) {
             <View style={styles.videoOverlay} />
             <View style={styles.videoPlayWrap}>
               <View style={styles.videoPlayButton}>
-                <Ionicons name="play" size={28} color="#FFFFFF" />
+                <Ionicons name="play" size={28} color={theme.onImage} />
               </View>
             </View>
             <View style={styles.videoSideActions}>
               <View style={styles.videoSideAction}>
-                <Ionicons name="heart" size={24} color="#FFFFFF" />
+                <Ionicons name="heart" size={24} color={theme.onImage} />
                 <Text style={styles.videoSideText}>{item.likes}</Text>
               </View>
               <View style={styles.videoSideAction}>
-                <Ionicons name="chatbubble" size={24} color="#FFFFFF" />
+                <Ionicons name="chatbubble" size={24} color={theme.onImage} />
                 <Text style={styles.videoSideText}>86</Text>
               </View>
               <View style={styles.videoSideAction}>
-                <Ionicons name="share-social" size={24} color="#FFFFFF" />
+                <Ionicons name="share-social" size={24} color={theme.onImage} />
               </View>
             </View>
             <View style={styles.videoFooter}>
@@ -185,13 +196,16 @@ function ProfileHeader({
   onToggleSave,
   onShare,
 }: ProfileHeaderProps) {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useAppTheme();
+
   return (
     <View>
       <View style={styles.heroWrap}>
         <Image source={{ uri: business.cover }} style={styles.heroImage} contentFit="cover" transition={300} />
         <View style={styles.heroOverlay} />
         <Pressable onPress={() => router.back()} style={[styles.backButton, { top: insetsTop + 8 }]}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color={theme.onImage} />
         </Pressable>
       </View>
 
@@ -204,7 +218,7 @@ function ProfileHeader({
           <Text style={styles.businessName}>{business.name}</Text>
           {business.verified && (
             <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={16} color={T.emerald} />
+              <Ionicons name="checkmark-circle" size={16} color={theme.emerald} />
               <Text style={styles.verifiedText}>Verified</Text>
             </View>
           )}
@@ -213,7 +227,7 @@ function ProfileHeader({
         <Text style={styles.categoryLine}>{business.category}</Text>
 
         <View style={styles.statsRow}>
-          <Ionicons name="star" size={14} color={T.star} />
+          <Ionicons name="star" size={14} color={theme.star} />
           <Text style={styles.ratingText}>{business.rating.toFixed(1)}</Text>
           <Text style={styles.reviewCount}>({business.reviewCount})</Text>
           <Text style={styles.dot}>·</Text>
@@ -243,7 +257,7 @@ function ProfileHeader({
             <Ionicons
               name={saved ? 'bookmark' : 'bookmark-outline'}
               size={20}
-              color={saved ? T.emerald : '#FFFFFF'}
+              color={saved ? theme.emerald : theme.text}
             />
             <Text style={[styles.saveProfileText, saved && styles.saveProfileTextActive]}>
               {saved ? 'Saved' : 'Save'}
@@ -285,6 +299,8 @@ function ProfileHeader({
 }
 
 export default function BusinessProfileScreen() {
+  const styles = useThemedStyles(createStyles);
+  const { theme } = useAppTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const business = useMemo(() => getBusinessById(id ?? ''), [id]);
@@ -376,15 +392,15 @@ export default function BusinessProfileScreen() {
         <Text style={styles.aboutText}>{business.about}</Text>
         <View style={styles.aboutCard}>
           <View style={styles.aboutRow}>
-            <Ionicons name="time-outline" size={18} color={T.textSecondary} />
+            <Ionicons name="time-outline" size={18} color={theme.textSecondary} />
             <Text style={styles.aboutRowText}>{business.hours}</Text>
           </View>
           <View style={styles.aboutRow}>
-            <Ionicons name="location-outline" size={18} color={T.textSecondary} />
+            <Ionicons name="location-outline" size={18} color={theme.textSecondary} />
             <Text style={styles.aboutRowText}>{business.address}</Text>
           </View>
           <View style={styles.aboutRow}>
-            <Ionicons name="globe-outline" size={18} color={T.textSecondary} />
+            <Ionicons name="globe-outline" size={18} color={theme.textSecondary} />
             <Text style={styles.aboutRowText}>{business.website}</Text>
           </View>
         </View>
@@ -440,10 +456,11 @@ export default function BusinessProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: theme.bg,
   },
   listHeader: {
     zIndex: 1,
@@ -479,11 +496,11 @@ const styles = StyleSheet.create({
   },
   profileCardTop: {
     marginTop: -36,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     borderBottomWidth: 0,
     paddingHorizontal: 16,
     paddingTop: 44,
@@ -497,9 +514,9 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 3,
-    borderColor: T.bg,
+    borderColor: theme.bg,
     overflow: 'hidden',
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
   },
   logo: {
     width: '100%',
@@ -513,7 +530,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   businessName: {
-    color: T.text,
+    color: theme.text,
     fontSize: 22,
     fontFamily: BrandFonts.bold,
     letterSpacing: -0.4,
@@ -523,18 +540,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: T.emeraldGlow,
+    backgroundColor: theme.emeraldGlow,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 999,
   },
   verifiedText: {
-    color: T.emerald,
+    color: theme.emerald,
     fontSize: 11,
     fontWeight: '700',
   },
   categoryLine: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
@@ -549,20 +566,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   ratingText: {
-    color: T.text,
+    color: theme.text,
     fontSize: 14,
     fontWeight: '700',
   },
   reviewCount: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 13,
   },
   dot: {
-    color: T.textMuted,
+    color: theme.textMuted,
     fontSize: 14,
   },
   distanceText: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 13,
   },
   statusPill: {
@@ -574,7 +591,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   openPill: {
-    backgroundColor: T.emeraldGlow,
+    backgroundColor: theme.emeraldGlow,
   },
   closedPill: {
     backgroundColor: 'rgba(107, 107, 107, 0.16)',
@@ -585,13 +602,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   openDot: {
-    backgroundColor: T.emerald,
+    backgroundColor: theme.emerald,
   },
   closedDot: {
-    backgroundColor: T.closed,
+    backgroundColor: theme.closed,
   },
   statusText: {
-    color: T.text,
+    color: theme.text,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -604,42 +621,42 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     borderRadius: 12,
-    backgroundColor: T.emerald,
+    backgroundColor: theme.emerald,
     alignItems: 'center',
     justifyContent: 'center',
   },
   followButtonActive: {
-    backgroundColor: T.emeraldGlow,
+    backgroundColor: theme.emeraldGlow,
     borderWidth: 1,
-    borderColor: T.emerald,
+    borderColor: theme.emerald,
   },
   followButtonText: {
-    color: T.onEmerald,
+    color: theme.onEmerald,
     fontSize: 15,
     fontFamily: BrandFonts.bold,
   },
   followButtonTextActive: {
-    color: T.emerald,
+    color: theme.emerald,
   },
   saveProfileButton: {
     flex: 1,
     height: 42,
     borderRadius: 12,
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderWidth: 1,
-    borderColor: T.borderLight,
+    borderColor: theme.borderLight,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
   saveProfileText: {
-    color: T.text,
+    color: theme.text,
     fontSize: 15,
     fontWeight: '700',
   },
   saveProfileTextActive: {
-    color: T.emerald,
+    color: theme.emerald,
   },
   buttonPressed: {
     opacity: 0.86,
@@ -663,17 +680,17 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: T.emerald,
+    backgroundColor: theme.emerald,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: T.emerald,
+    shadowColor: theme.emerald,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
   compactActionLabel: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 11,
     fontWeight: '600',
     marginTop: 6,
@@ -690,35 +707,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderWidth: 1,
-    borderColor: T.borderLight,
+    borderColor: theme.borderLight,
   },
   tabChipActive: {
-    backgroundColor: T.emeraldGlow,
-    borderColor: T.emerald,
+    backgroundColor: theme.emeraldGlow,
+    borderColor: theme.emerald,
   },
   tabChipText: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 13,
     fontWeight: '600',
   },
   tabChipTextActive: {
-    color: T.emerald,
+    color: theme.emerald,
   },
   tabContentItem: {
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 20,
     paddingTop: 0,
   },
   videoFeedContainer: {
     height: VIDEO_HEIGHT,
     borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: T.bg,
+    overflow: 'hidden' as const,
+    backgroundColor: theme.bg,
   },
   videoItem: {
     width: '100%',
@@ -781,17 +798,17 @@ const styles = StyleSheet.create({
   },
   photoRow: {
     gap: PHOTO_GAP,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 20,
   },
   photoTile: {
     width: PHOTO_WIDTH,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     marginBottom: PHOTO_GAP,
   },
   photoTileTall: {
@@ -805,25 +822,25 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   menuSectionHeader: {
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 20,
     paddingTop: 8,
   },
   menuSectionTitle: {
-    color: T.text,
+    color: theme.text,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
     marginBottom: 12,
   },
   menuItem: {
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
@@ -832,43 +849,43 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: T.borderLight,
+    borderColor: theme.borderLight,
     padding: 14,
   },
   menuItemName: {
-    color: T.text,
+    color: theme.text,
     fontSize: 15,
     fontWeight: '700',
     flex: 1,
   },
   menuItemPrice: {
-    color: T.text,
+    color: theme.text,
     fontSize: 15,
     fontWeight: '700',
   },
   menuItemDescription: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 13,
     lineHeight: 18,
     paddingHorizontal: 14,
     paddingTop: 6,
   },
   reviewCardWrap: {
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
   reviewCard: {
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: T.borderLight,
+    borderColor: theme.borderLight,
     padding: 14,
     gap: 10,
   },
@@ -887,16 +904,16 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   reviewAuthor: {
-    color: T.text,
+    color: theme.text,
     fontSize: 15,
     fontWeight: '700',
   },
   reviewDate: {
-    color: T.textMuted,
+    color: theme.textMuted,
     fontSize: 12,
   },
   reviewText: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     lineHeight: 21,
   },
@@ -906,23 +923,23 @@ const styles = StyleSheet.create({
   },
   aboutContainer: {
     gap: 14,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 20,
     paddingTop: 4,
   },
   aboutText: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 15,
     lineHeight: 24,
   },
   aboutCard: {
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: T.borderLight,
+    borderColor: theme.borderLight,
     padding: 14,
     gap: 12,
   },
@@ -932,42 +949,43 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   aboutRowText: {
-    color: T.text,
+    color: theme.text,
     fontSize: 14,
     lineHeight: 20,
     flex: 1,
   },
   tabPanelFooter: {
     height: 12,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     marginBottom: 16,
   },
   emptyState: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: theme.bg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
   },
   emptyTitle: {
-    color: T.text,
+    color: theme.text,
     fontSize: 18,
     fontWeight: '700',
   },
   emptyButton: {
-    backgroundColor: T.emerald,
+    backgroundColor: theme.emerald,
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 12,
   },
   emptyButtonText: {
-    color: T.onEmerald,
+    color: theme.onEmerald,
     fontFamily: BrandFonts.bold,
   },
-});
+  });
+}

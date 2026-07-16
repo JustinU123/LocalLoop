@@ -16,7 +16,9 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocalLoopWordmark } from '@/components/onboarding/local-loop-wordmark';
-import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { signInWithEmail, signOutUser, signUpWithEmail } from '@/utils/auth';
 import { routeAfterAuthentication } from '@/utils/auth-navigation';
 import {
@@ -29,6 +31,8 @@ import {
 type AuthMode = 'sign-in' | 'sign-up';
 
 export default function EmailAuthScreen() {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -140,7 +144,7 @@ export default function EmailAuthScreen() {
         <View style={styles.content}>
           <Animated.View entering={FadeInDown.duration(450)} style={styles.hero}>
             <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-              <Ionicons name="chevron-back" size={22} color={T.text} />
+              <Ionicons name="chevron-back" size={22} color={theme.text} />
             </Pressable>
             <LocalLoopWordmark size="medium" />
             <Text style={styles.title}>{isSignUp ? 'Create your account' : 'Welcome back'}</Text>
@@ -175,7 +179,7 @@ export default function EmailAuthScreen() {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                placeholderTextColor={T.textMuted}
+                placeholderTextColor={theme.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
@@ -190,7 +194,7 @@ export default function EmailAuthScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="At least 8 characters"
-                placeholderTextColor={T.textMuted}
+                placeholderTextColor={theme.textMuted}
                 secureTextEntry
                 textContentType={isSignUp ? 'newPassword' : 'password'}
                 style={styles.input}
@@ -204,7 +208,7 @@ export default function EmailAuthScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="Re-enter your password"
-                  placeholderTextColor={T.textMuted}
+                  placeholderTextColor={theme.textMuted}
                   secureTextEntry
                   textContentType="newPassword"
                   style={styles.input}
@@ -224,13 +228,13 @@ export default function EmailAuthScreen() {
                 loading && styles.primaryButtonDisabled,
               ]}>
               {loading ? (
-                <ActivityIndicator color={T.onEmerald} />
+                <ActivityIndicator color={theme.onEmerald} />
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>
                     {isSignUp ? 'Create Account' : 'Sign In'}
                   </Text>
-                  <Ionicons name="arrow-forward" size={18} color={T.onEmerald} />
+                  <Ionicons name="arrow-forward" size={18} color={theme.onEmerald} />
                 </>
               )}
             </Pressable>
@@ -240,7 +244,7 @@ export default function EmailAuthScreen() {
               disabled={signingOut}
               style={({ pressed }) => [styles.signOutButton, pressed && styles.signOutButtonPressed]}>
               {signingOut ? (
-                <ActivityIndicator color={T.textSecondary} size="small" />
+                <ActivityIndicator color={theme.textSecondary} size="small" />
               ) : (
                 <Text style={styles.signOutText}>Sign Out</Text>
               )}
@@ -252,10 +256,11 @@ export default function EmailAuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: theme.bg,
   },
   flex: {
     flex: 1,
@@ -276,22 +281,22 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
   title: {
-    color: T.text,
+    color: theme.text,
     fontSize: 24,
     fontFamily: BrandFonts.bold,
     letterSpacing: -0.4,
     textAlign: 'center',
   },
   subtitle: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 15,
     lineHeight: 22,
     fontFamily: BrandFonts.regular,
@@ -310,49 +315,49 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     borderRadius: 12,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: T.borderLight,
+    borderColor: theme.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modeButtonActive: {
-    backgroundColor: T.emeraldGlow,
-    borderColor: T.emerald,
+    backgroundColor: theme.emeraldGlow,
+    borderColor: theme.emerald,
   },
   modeButtonText: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     fontWeight: '700',
   },
   modeButtonTextActive: {
-    color: T.emerald,
+    color: theme.emerald,
   },
   field: {
     gap: 8,
   },
   fieldLabel: {
-    color: T.text,
+    color: theme.text,
     fontSize: 14,
     fontWeight: '600',
   },
   input: {
     height: 48,
     borderRadius: 12,
-    backgroundColor: T.surface,
+    backgroundColor: theme.surface,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     paddingHorizontal: 14,
-    color: T.text,
+    color: theme.text,
     fontSize: 16,
   },
   errorText: {
-    color: T.danger,
+    color: theme.danger,
     fontSize: 14,
     lineHeight: 20,
   },
   infoText: {
-    color: T.emerald,
+    color: theme.emerald,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -363,9 +368,9 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 52,
     borderRadius: 14,
-    backgroundColor: T.emerald,
+    backgroundColor: theme.emerald,
     marginTop: 4,
-    ...BrandShadow.button,
+    ...theme.shadowButton,
   },
   primaryButtonPressed: {
     opacity: 0.9,
@@ -375,7 +380,7 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   primaryButtonText: {
-    color: T.onEmerald,
+    color: theme.onEmerald,
     fontSize: 16,
     fontFamily: BrandFonts.bold,
   },
@@ -388,8 +393,9 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   signOutText: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
-});
+  });
+}

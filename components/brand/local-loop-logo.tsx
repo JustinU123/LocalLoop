@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Brand, BrandFonts } from '@/constants/business-theme';
+import { BrandFonts } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 
 export type LocalLoopLogoSize = 'large' | 'medium' | 'small';
 
@@ -36,18 +37,19 @@ const SIZE_MAP = {
  * Replace this component with the final SVG asset when ready.
  */
 export function LocalLoopLogo({ size = 'large', showPin = true }: LocalLoopLogoProps) {
+  const { theme } = useAppTheme();
   const dimensions = SIZE_MAP[size];
 
   return (
     <View style={[styles.container, { gap: dimensions.gap }]}>
       {showPin ? (
         <View style={styles.pinWrap}>
-          <Ionicons name="location" size={dimensions.pin} color={Brand.emerald} />
+          <Ionicons name="location" size={dimensions.pin} color={theme.emerald} />
         </View>
       ) : null}
       <Text style={styles.wordmark}>
-        <Text style={[styles.local, { fontSize: dimensions.local }]}>Local</Text>
-        <Text style={[styles.loop, { fontSize: dimensions.loop }]}>Loop</Text>
+        <Text style={[styles.local, { fontSize: dimensions.local, color: theme.text }]}>Local</Text>
+        <Text style={[styles.loop, { fontSize: dimensions.loop, color: theme.coral }]}>Loop</Text>
       </Text>
     </View>
   );
@@ -66,12 +68,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   local: {
-    color: Brand.offWhite,
     fontFamily: BrandFonts.bold,
     letterSpacing: -1,
   },
   loop: {
-    color: Brand.coral,
     fontFamily: BrandFonts.bold,
     letterSpacing: -1,
   },

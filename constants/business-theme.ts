@@ -1,31 +1,7 @@
-/**
- * LocalLoop brand colors with strict role assignments.
- *
- * Emerald  — primary actions, active nav, selected chips/tabs, follow, verified/open, success
- * Coral    — discovery accents only (see-all, map FAB, promo badges, featured highlights)
- * Off-white — headings and primary text
- * Gray     — secondary text, inactive icons, unselected chips/tabs
- * Background — app shell
- */
-export const Brand = {
-  bg: '#080808',
-  offWhite: '#F5F5F5',
-  emerald: '#00C38E',
-  coral: '#FF6B4D',
-  gray: '#A0A0A0',
-  surface: '#111111',
-  surfaceElevated: '#161616',
-  border: '#222222',
-  borderLight: '#2A2A2A',
-  star: '#F5C542',
-  /** Errors and closed status — intentionally separate from discovery coral */
-  danger: '#E05555',
-  closed: '#6B6B6B',
-  onEmerald: '#FFFFFF',
-  onCoral: '#FFFFFF',
-  emeraldGlow: 'rgba(0, 195, 142, 0.14)',
-  coralGlow: 'rgba(255, 107, 77, 0.14)',
-} as const;
+import type { ViewStyle } from 'react-native';
+
+export type ColorScheme = 'light' | 'dark';
+export type ThemePreference = 'light' | 'dark' | 'system';
 
 export const BrandFonts = {
   regular: 'PlusJakartaSans_400Regular',
@@ -42,41 +18,164 @@ export const BrandRadius = {
   pill: 999,
 } as const;
 
-export const BrandShadow = {
+const shared = {
+  emerald: '#00C38E',
+  coral: '#FF6B4D',
+  star: '#F5C542',
+  danger: '#E05555',
+  closed: '#6B6B6B',
+  onEmerald: '#FFFFFF',
+  onCoral: '#FFFFFF',
+  emeraldDark: '#00A374',
+  emeraldGlow: 'rgba(0, 195, 142, 0.14)',
+  coralGlow: 'rgba(255, 107, 77, 0.14)',
+} as const;
+
+const lightShadows = {
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  } satisfies ViewStyle,
+  button: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  } satisfies ViewStyle,
+};
+
+const darkShadows = {
   card: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 14,
     elevation: 5,
-  },
+  } satisfies ViewStyle,
   button: {
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 10,
     elevation: 3,
-  },
+  } satisfies ViewStyle,
+};
+
+export type AppThemeTokens = {
+  scheme: ColorScheme;
+  isDark: boolean;
+  bg: string;
+  surface: string;
+  surfaceSecondary: string;
+  surfaceElevated: string;
+  border: string;
+  borderLight: string;
+  text: string;
+  textSecondary: string;
+  textMuted: string;
+  onImage: string;
+  emerald: string;
+  coral: string;
+  emeraldDark: string;
+  emeraldGlow: string;
+  coralGlow: string;
+  star: string;
+  danger: string;
+  closed: string;
+  onEmerald: string;
+  onCoral: string;
+  shadowCard: ViewStyle;
+  shadowButton: ViewStyle;
+};
+
+export const lightTheme: AppThemeTokens = {
+  scheme: 'light',
+  isDark: false,
+  bg: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceSecondary: '#F8F8F8',
+  surfaceElevated: '#F8F8F8',
+  border: '#E8E8E8',
+  borderLight: '#E8E8E8',
+  text: '#111111',
+  textSecondary: '#6B7280',
+  textMuted: '#6B7280',
+  onImage: '#FFFFFF',
+  ...shared,
+  shadowCard: lightShadows.card,
+  shadowButton: lightShadows.button,
+};
+
+export const darkTheme: AppThemeTokens = {
+  scheme: 'dark',
+  isDark: true,
+  bg: '#080808',
+  surface: '#121212',
+  surfaceSecondary: '#111111',
+  surfaceElevated: '#181818',
+  border: '#222222',
+  borderLight: '#2A2A2A',
+  text: '#F5F5F5',
+  textSecondary: '#A0A0A0',
+  textMuted: '#A0A0A0',
+  onImage: '#FFFFFF',
+  ...shared,
+  shadowCard: darkShadows.card,
+  shadowButton: darkShadows.button,
+};
+
+export function getThemeTokens(scheme: ColorScheme): AppThemeTokens {
+  return scheme === 'dark' ? darkTheme : lightTheme;
+}
+
+/** @deprecated Use `useAppTheme().theme` for scheme-aware tokens. */
+export const Brand = {
+  bg: darkTheme.bg,
+  offWhite: darkTheme.text,
+  emerald: shared.emerald,
+  coral: shared.coral,
+  gray: darkTheme.textSecondary,
+  surface: darkTheme.surface,
+  surfaceElevated: darkTheme.surfaceElevated,
+  border: darkTheme.border,
+  borderLight: darkTheme.borderLight,
+  star: shared.star,
+  danger: shared.danger,
+  closed: shared.closed,
+  onEmerald: shared.onEmerald,
+  onCoral: shared.onCoral,
+  emeraldGlow: shared.emeraldGlow,
+  coralGlow: shared.coralGlow,
 } as const;
 
-/** Backward-compatible alias used across existing screens. */
+/** @deprecated Use `useAppTheme().theme` for scheme-aware tokens. */
+export const BrandShadow = {
+  card: darkShadows.card,
+  button: darkShadows.button,
+} as const;
+
+/** @deprecated Use `useAppTheme().theme` for scheme-aware tokens. */
 export const BusinessTheme = {
-  bg: Brand.bg,
-  surface: Brand.surface,
-  surfaceElevated: Brand.surfaceElevated,
-  border: Brand.border,
-  borderLight: Brand.borderLight,
-  text: Brand.offWhite,
-  textSecondary: Brand.gray,
-  textMuted: Brand.gray,
-  emerald: Brand.emerald,
-  coral: Brand.coral,
-  emeraldDark: '#00A374',
-  emeraldGlow: Brand.emeraldGlow,
-  coralGlow: Brand.coralGlow,
-  star: Brand.star,
-  danger: Brand.danger,
-  closed: Brand.closed,
-  onEmerald: Brand.onEmerald,
-  onCoral: Brand.onCoral,
+  bg: darkTheme.bg,
+  surface: darkTheme.surface,
+  surfaceElevated: darkTheme.surfaceElevated,
+  border: darkTheme.border,
+  borderLight: darkTheme.borderLight,
+  text: darkTheme.text,
+  textSecondary: darkTheme.textSecondary,
+  textMuted: darkTheme.textMuted,
+  emerald: shared.emerald,
+  coral: shared.coral,
+  emeraldDark: shared.emeraldDark,
+  emeraldGlow: shared.emeraldGlow,
+  coralGlow: shared.coralGlow,
+  star: shared.star,
+  danger: shared.danger,
+  closed: shared.closed,
+  onEmerald: shared.onEmerald,
+  onCoral: shared.onCoral,
 };

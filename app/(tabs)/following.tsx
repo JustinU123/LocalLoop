@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { getBusinessById } from '@/data/businesses';
 import { FOLLOWING_POSTS, FollowingPost } from '@/data/following-posts';
 
@@ -24,6 +26,8 @@ function FollowingPostCard({
   onToggleLike,
   onToggleSave,
   onViewBusiness,
+  theme,
+  styles,
 }: {
   post: FollowingPost;
   liked: boolean;
@@ -31,6 +35,8 @@ function FollowingPostCard({
   onToggleLike: () => void;
   onToggleSave: () => void;
   onViewBusiness: () => void;
+  theme: AppThemeTokens;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const business = getBusinessById(post.businessId);
 
@@ -55,7 +61,7 @@ function FollowingPostCard({
           onPress={onToggleLike}
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
           hitSlop={8}>
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? T.coral : T.textSecondary} />
+          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? theme.coral : theme.textSecondary} />
         </Pressable>
         <Pressable
           onPress={onToggleSave}
@@ -64,7 +70,7 @@ function FollowingPostCard({
           <Ionicons
             name={saved ? 'bookmark' : 'bookmark-outline'}
             size={22}
-            color={saved ? T.emerald : T.textSecondary}
+            color={saved ? theme.emerald : theme.textSecondary}
           />
         </Pressable>
       </View>
@@ -73,13 +79,15 @@ function FollowingPostCard({
         onPress={onViewBusiness}
         style={({ pressed }) => [styles.viewBusinessButton, pressed && styles.viewBusinessButtonPressed]}>
         <Text style={styles.viewBusinessText}>View Business</Text>
-        <Ionicons name="arrow-forward" size={16} color={T.onEmerald} />
+        <Ionicons name="arrow-forward" size={16} color={theme.onEmerald} />
       </Pressable>
     </View>
   );
 }
 
 export default function FollowingScreen() {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
@@ -123,9 +131,11 @@ export default function FollowingScreen() {
         onToggleLike={() => toggleLike(item.id)}
         onToggleSave={() => toggleSave(item.id)}
         onViewBusiness={() => openBusiness(item.businessId)}
+        theme={theme}
+        styles={styles}
       />
     ),
-    [likedIds, savedIds, toggleLike, toggleSave, openBusiness],
+    [likedIds, savedIds, toggleLike, toggleSave, openBusiness, theme, styles],
   );
 
   return (
@@ -148,125 +158,128 @@ export default function FollowingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: T.bg,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-  },
-  header: {
-    paddingTop: 4,
-    paddingBottom: 20,
-  },
-  eyebrow: {
-    color: T.textSecondary,
-    fontSize: 12,
-    fontFamily: BrandFonts.semiBold,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  title: {
-    color: T.text,
-    fontSize: 34,
-    fontFamily: BrandFonts.bold,
-    letterSpacing: -0.8,
-  },
-  subtitle: {
-    color: T.textSecondary,
-    fontSize: 15,
-    fontFamily: BrandFonts.regular,
-    marginTop: 6,
-    lineHeight: 22,
-  },
-  card: {
-    backgroundColor: T.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: T.border,
-    marginBottom: 16,
-    overflow: 'hidden',
-    ...BrandShadow.card,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: T.borderLight,
-  },
-  headerText: {
-    flex: 1,
-    gap: 2,
-  },
-  businessName: {
-    color: T.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  postedAt: {
-    color: T.textMuted,
-    fontSize: 13,
-  },
-  postImage: {
-    width: '100%',
-    height: 220,
-    backgroundColor: T.surfaceElevated,
-  },
-  caption: {
-    color: T.text,
-    fontSize: 15,
-    lineHeight: 22,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    fontWeight: '500',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconButtonPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.94 }],
-  },
-  viewBusinessButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 14,
-    marginBottom: 14,
-    marginTop: 6,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: T.emerald,
-  },
-  viewBusinessButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  viewBusinessText: {
-    color: T.onEmerald,
-    fontSize: 15,
-    fontFamily: BrandFonts.bold,
-  },
-});
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    listContent: {
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+    },
+    header: {
+      paddingTop: 4,
+      paddingBottom: 20,
+    },
+    eyebrow: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      fontFamily: BrandFonts.semiBold,
+      letterSpacing: 1,
+      textTransform: 'uppercase' as const,
+      marginBottom: 4,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 34,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: -0.8,
+    },
+    subtitle: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      fontFamily: BrandFonts.regular,
+      marginTop: 6,
+      lineHeight: 22,
+    },
+    card: {
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginBottom: 16,
+      overflow: 'hidden' as const,
+      ...theme.shadowCard,
+    },
+    cardHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      padding: 14,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+    },
+    headerText: {
+      flex: 1,
+      gap: 2,
+    },
+    businessName: {
+      color: theme.text,
+      fontSize: 16,
+      fontFamily: BrandFonts.bold,
+    },
+    postedAt: {
+      color: theme.textMuted,
+      fontSize: 13,
+    },
+    postImage: {
+      width: '100%' as const,
+      height: 220,
+      backgroundColor: theme.surfaceElevated,
+    },
+    caption: {
+      color: theme.text,
+      fontSize: 15,
+      lineHeight: 22,
+      paddingHorizontal: 14,
+      paddingTop: 12,
+      fontFamily: BrandFonts.medium,
+    },
+    actionsRow: {
+      flexDirection: 'row' as const,
+      gap: 8,
+      paddingHorizontal: 10,
+      paddingTop: 10,
+      paddingBottom: 4,
+    },
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    iconButtonPressed: {
+      opacity: 0.7,
+      transform: [{ scale: 0.94 }],
+    },
+    viewBusinessButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      marginHorizontal: 14,
+      marginBottom: 14,
+      marginTop: 6,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: theme.emerald,
+      ...theme.shadowButton,
+    },
+    viewBusinessButtonPressed: {
+      opacity: 0.9,
+      transform: [{ scale: 0.98 }],
+    },
+    viewBusinessText: {
+      color: theme.onEmerald,
+      fontSize: 15,
+      fontFamily: BrandFonts.bold,
+    },
+  });
+}

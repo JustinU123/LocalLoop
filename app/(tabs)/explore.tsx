@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { StyleSheet, Platform, Pressable } from 'react-native';
 
 import { Collapsible } from '@/components/ui/collapsible';
 import { ExternalLink } from '@/components/external-link';
@@ -8,18 +8,24 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { BrandFonts, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { Fonts } from '@/constants/theme';
+import type { AppThemeTokens } from '@/constants/business-theme';
 import { resetOnboarding } from '@/utils/onboarding-storage';
 
 export default function TabTwoScreen() {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: T.bg, dark: T.bg }}
+      headerBackgroundColor={{ light: theme.bg, dark: theme.bg }}
       headerImage={
         <IconSymbol
           size={310}
-          color={T.textSecondary}
+          color={theme.textSecondary}
           name="chevron.left.forwardslash.chevron.right"
           style={styles.headerImage}
         />
@@ -116,28 +122,30 @@ export default function TabTwoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
   headerImage: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     bottom: -90,
     left: -35,
-    position: 'absolute',
+    position: 'absolute' as const,
   },
   titleContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 8,
   },
   devButton: {
     marginTop: 12,
-    alignSelf: 'flex-start',
-    backgroundColor: T.emeraldGlow,
+    alignSelf: 'flex-start' as const,
+    backgroundColor: theme.emeraldGlow,
     borderWidth: 1,
-    borderColor: T.emerald,
+    borderColor: theme.emerald,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   devButtonText: {
-    color: T.emerald,
+    color: theme.emerald,
   },
-});
+  });
+}

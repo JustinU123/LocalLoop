@@ -4,9 +4,13 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { LocalLoopWordmark } from '@/components/onboarding/local-loop-wordmark';
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import type { AppThemeTokens } from '@/constants/business-theme';
 
 export default function SplashScreen() {
+  const styles = useThemedStyles(createStyles);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       router.replace('/onboarding/welcome');
@@ -24,11 +28,13 @@ export default function SplashScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: T.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+  });
+}

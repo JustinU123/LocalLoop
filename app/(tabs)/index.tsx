@@ -22,7 +22,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandFonts, BrandRadius, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { BUSINESSES, type Business } from '@/data/businesses';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -55,10 +57,14 @@ function CategoryChip({
   category,
   selected,
   onPress,
+  theme,
+  styles,
 }: {
   category: Category;
   selected: boolean;
   onPress: () => void;
+  theme: AppThemeTokens;
+  styles: ReturnType<typeof createStyles>;
 }) {
   const progress = useSharedValue(selected ? 1 : 0);
 
@@ -70,15 +76,22 @@ function CategoryChip({
     });
   }, [selected, progress]);
 
+  const chipBackground = theme.surfaceElevated;
+  const chipBackgroundSelected = theme.emerald;
+  const chipBorder = theme.borderLight;
+  const chipBorderSelected = theme.emerald;
+  const labelColor = theme.textSecondary;
+  const labelColorSelected = theme.onEmerald;
+
   const animatedChipStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [T.surfaceElevated, T.emerald]),
-    borderColor: interpolateColor(progress.value, [0, 1], [T.borderLight, T.emerald]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [chipBackground, chipBackgroundSelected]),
+    borderColor: interpolateColor(progress.value, [0, 1], [chipBorder, chipBorderSelected]),
     transform: [{ scale: 1 + progress.value * 0.04 }],
-  }));
+  }), [chipBackground, chipBackgroundSelected, chipBorder, chipBorderSelected]);
 
   const animatedLabelStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [T.textSecondary, T.onEmerald]),
-  }));
+    color: interpolateColor(progress.value, [0, 1], [labelColor, labelColorSelected]),
+  }), [labelColor, labelColorSelected]);
 
   return (
     <AnimatedPressable
@@ -87,7 +100,7 @@ function CategoryChip({
       <Ionicons
         name={category.icon}
         size={15}
-        color={selected ? T.onEmerald : T.textSecondary}
+        color={selected ? theme.onEmerald : theme.textSecondary}
       />
       <Animated.Text style={[styles.chipLabel, animatedLabelStyle]}>
         {category.label}
@@ -96,7 +109,17 @@ function CategoryChip({
   );
 }
 
-function SaveButton({ saved, onPress }: { saved: boolean; onPress: () => void }) {
+function SaveButton({
+  saved,
+  onPress,
+  theme,
+  styles,
+}: {
+  saved: boolean;
+  onPress: () => void;
+  theme: AppThemeTokens;
+  styles: ReturnType<typeof createStyles>;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -105,7 +128,7 @@ function SaveButton({ saved, onPress }: { saved: boolean; onPress: () => void })
       <Ionicons
         name={saved ? 'heart' : 'heart-outline'}
         size={18}
-        color={saved ? T.emerald : '#FFFFFF'}
+        color={saved ? theme.emerald : theme.onImage}
       />
     </Pressable>
   );
@@ -115,10 +138,14 @@ function TrendingCard({
   business,
   saved,
   onToggleSave,
+  theme,
+  styles,
 }: {
   business: Business;
   saved: boolean;
   onToggleSave: () => void;
+  theme: AppThemeTokens;
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={styles.trendingCard}>
@@ -145,7 +172,7 @@ function TrendingCard({
         </View>
       </Pressable>
       <View style={styles.trendingSaveWrap}>
-        <SaveButton saved={saved} onPress={onToggleSave} />
+        <SaveButton saved={saved} onPress={onToggleSave} theme={theme} styles={styles} />
       </View>
     </View>
   );
@@ -155,10 +182,14 @@ function HiddenGemCard({
   business,
   saved,
   onToggleSave,
+  theme,
+  styles,
 }: {
   business: Business;
   saved: boolean;
   onToggleSave: () => void;
+  theme: AppThemeTokens;
+  styles: ReturnType<typeof createStyles>;
 }) {
   return (
     <View style={styles.gemCard}>
@@ -184,13 +215,15 @@ function HiddenGemCard({
         </View>
       </Pressable>
       <View style={styles.gemSaveWrap}>
-        <SaveButton saved={saved} onPress={onToggleSave} />
+        <SaveButton saved={saved} onPress={onToggleSave} theme={theme} styles={styles} />
       </View>
     </View>
   );
 }
 
 export default function HomeScreen() {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [selectedCategory, setSelectedCategory] = useState('more');
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
@@ -236,8 +269,8 @@ export default function HomeScreen() {
           <Text style={styles.eyebrow}>LocalLoop</Text>
           <Text style={styles.title}>Discover Local</Text>
         </View>
-        <Pressable style={styles.profileButton}>
-          <Ionicons name="person-circle-outline" size={30} color={T.textSecondary} />
+        <Pressable style={styles.profileButton} onPress={() => router.push('/settings')}>
+          <Ionicons name="person-circle-outline" size={30} color={theme.textSecondary} />
         </Pressable>
       </View>
 
@@ -247,14 +280,14 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}>
         <View style={styles.stickyHeader}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color={T.textSecondary} />
+            <Ionicons name="search" size={18} color={theme.textSecondary} />
             <TextInput
               placeholder="Search restaurants, coffee, boutiques..."
-              placeholderTextColor={T.textSecondary}
+              placeholderTextColor={theme.textSecondary}
               style={styles.searchInput}
             />
             <Pressable style={styles.filterButton}>
-              <Ionicons name="options-outline" size={18} color={T.textSecondary} />
+              <Ionicons name="options-outline" size={18} color={theme.textSecondary} />
             </Pressable>
           </View>
 
@@ -268,6 +301,8 @@ export default function HomeScreen() {
                 category={category}
                 selected={selectedCategory === category.id}
                 onPress={() => handleCategoryPress(category.id)}
+                theme={theme}
+                styles={styles}
               />
             ))}
           </ScrollView>
@@ -296,6 +331,8 @@ export default function HomeScreen() {
                 business={business}
                 saved={savedIds.has(business.id)}
                 onToggleSave={() => toggleSave(business.id)}
+                theme={theme}
+                styles={styles}
               />
             ))}
           </ScrollView>
@@ -312,6 +349,8 @@ export default function HomeScreen() {
                 business={business}
                 saved={savedIds.has(business.id)}
                 onToggleSave={() => toggleSave(business.id)}
+                theme={theme}
+                styles={styles}
               />
             ))}
           </View>
@@ -321,17 +360,18 @@ export default function HomeScreen() {
       <Pressable
         style={({ pressed }) => [styles.mapFab, pressed && styles.mapFabPressed]}
         onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
-        <Ionicons name="map" size={22} color="#FFFFFF" />
+        <Ionicons name="map" size={22} color={theme.onCoral} />
         <Text style={styles.mapFabLabel}>Map</Text>
       </Pressable>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: theme.bg,
   },
   header: {
     flexDirection: 'row',
@@ -342,7 +382,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   eyebrow: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 12,
     fontFamily: BrandFonts.semiBold,
     letterSpacing: 1,
@@ -350,7 +390,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    color: T.text,
+    color: theme.text,
     fontSize: 34,
     fontFamily: BrandFonts.bold,
     letterSpacing: -0.8,
@@ -359,9 +399,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -369,10 +409,10 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   stickyHeader: {
-    backgroundColor: T.bg,
+    backgroundColor: theme.bg,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: T.border,
+    borderBottomColor: theme.border,
   },
   searchBar: {
     flexDirection: 'row',
@@ -383,14 +423,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 48,
     borderRadius: BrandRadius.sm,
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     gap: 10,
   },
   searchInput: {
     flex: 1,
-    color: T.text,
+    color: theme.text,
     fontSize: 16,
     fontFamily: BrandFonts.regular,
     paddingVertical: 0,
@@ -399,7 +439,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: T.border,
+    backgroundColor: theme.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -433,23 +473,23 @@ const styles = StyleSheet.create({
     marginTop: 30,
   },
   sectionTitle: {
-    color: T.text,
+    color: theme.text,
     fontSize: 22,
     fontFamily: BrandFonts.bold,
     letterSpacing: -0.3,
   },
   sectionAction: {
-    color: T.coral,
+    color: theme.coral,
     fontSize: 15,
     fontFamily: BrandFonts.semiBold,
   },
   sectionCount: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     fontFamily: BrandFonts.medium,
   },
   sectionCountAccent: {
-    color: T.coral,
+    color: theme.coral,
     fontSize: 14,
     fontFamily: BrandFonts.semiBold,
   },
@@ -463,9 +503,9 @@ const styles = StyleSheet.create({
     height: 320,
     borderRadius: BrandRadius.lg,
     overflow: 'hidden',
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     position: 'relative',
-    ...BrandShadow.card,
+    ...theme.shadowCard,
   },
   trendingCardPressable: {
     flex: 1,
@@ -493,15 +533,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trendingBadge: {
-    backgroundColor: T.coralGlow,
+    backgroundColor: theme.coralGlow,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: BrandRadius.pill,
     borderWidth: 1,
-    borderColor: T.coral,
+    borderColor: theme.coral,
   },
   trendingBadgeText: {
-    color: T.coral,
+    color: theme.coral,
     fontSize: 12,
     fontFamily: BrandFonts.bold,
   },
@@ -512,7 +552,7 @@ const styles = StyleSheet.create({
     bottom: 16,
   },
   trendingName: {
-    color: '#FFFFFF',
+    color: theme.onImage,
     fontSize: 24,
     fontFamily: BrandFonts.bold,
     letterSpacing: -0.4,
@@ -524,21 +564,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   trendingCategory: {
-    color: T.text,
+    color: theme.text,
     fontSize: 14,
     fontFamily: BrandFonts.semiBold,
   },
   trendingDistance: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
     fontFamily: BrandFonts.regular,
   },
   trendingDot: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 14,
   },
   trendingRating: {
-    color: '#FFFFFF',
+    color: theme.onImage,
     fontSize: 14,
     fontFamily: BrandFonts.bold,
   },
@@ -569,11 +609,11 @@ const styles = StyleSheet.create({
     width: GEM_CARD_WIDTH,
     borderRadius: BrandRadius.md,
     overflow: 'hidden',
-    backgroundColor: T.surfaceElevated,
+    backgroundColor: theme.surfaceElevated,
     borderWidth: 1,
-    borderColor: T.border,
+    borderColor: theme.border,
     position: 'relative',
-    ...BrandShadow.card,
+    ...theme.shadowCard,
   },
   gemImageWrap: {
     height: 128,
@@ -597,7 +637,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   gemName: {
-    color: T.text,
+    color: theme.text,
     fontSize: 15,
     fontFamily: BrandFonts.bold,
     marginBottom: 4,
@@ -608,12 +648,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   gemCategory: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 12,
     fontFamily: BrandFonts.semiBold,
   },
   gemDistance: {
-    color: T.textSecondary,
+    color: theme.textSecondary,
     fontSize: 12,
     fontFamily: BrandFonts.regular,
   },
@@ -623,7 +663,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   gemRating: {
-    color: T.text,
+    color: theme.text,
     fontSize: 12,
     fontFamily: BrandFonts.bold,
   },
@@ -637,8 +677,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderRadius: BrandRadius.pill,
-    backgroundColor: T.coral,
-    shadowColor: T.coral,
+    backgroundColor: theme.coral,
+    shadowColor: theme.coral,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
@@ -649,8 +689,9 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   mapFabLabel: {
-    color: T.onCoral,
+    color: theme.onCoral,
     fontSize: 16,
     fontFamily: BrandFonts.bold,
   },
-});
+  });
+}

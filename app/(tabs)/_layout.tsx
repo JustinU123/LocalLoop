@@ -1,19 +1,21 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Brand, BrandFonts } from '@/constants/business-theme';
+import { BrandFonts } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 
 export default function TabLayout() {
+  const { theme } = useAppTheme();
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Brand.emerald,
-        tabBarInactiveTintColor: Brand.gray,
+        tabBarActiveTintColor: theme.emerald,
+        tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
-          backgroundColor: Brand.bg,
-          borderTopColor: Brand.border,
+          backgroundColor: theme.bg,
+          borderTopColor: theme.border,
           borderTopWidth: 1,
           height: 84,
           paddingTop: 8,

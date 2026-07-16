@@ -14,7 +14,9 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { setOnboardingComplete } from '@/utils/onboarding-storage';
 
 const CATEGORIES = ['Food', 'Coffee', 'Clothing', 'Beauty', 'Fitness', 'Other'];
@@ -25,12 +27,16 @@ function FormField({
   onChangeText,
   placeholder,
   keyboardType = 'default',
+  styles,
+  theme,
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
   keyboardType?: 'default' | 'phone-pad' | 'url';
+  styles: ReturnType<typeof createStyles>;
+  theme: AppThemeTokens;
 }) {
   return (
     <View style={styles.field}>
@@ -39,7 +45,7 @@ function FormField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={T.textMuted}
+        placeholderTextColor={theme.textMuted}
         keyboardType={keyboardType}
         style={styles.input}
       />
@@ -48,6 +54,8 @@ function FormField({
 }
 
 export default function BusinessOnboardingScreen() {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [businessName, setBusinessName] = useState('');
   const [category, setCategory] = useState('Coffee');
   const [address, setAddress] = useState('');
@@ -80,6 +88,8 @@ export default function BusinessOnboardingScreen() {
               value={businessName}
               onChangeText={setBusinessName}
               placeholder="Sunrise Roasters"
+              styles={styles}
+              theme={theme}
             />
 
             <View style={styles.field}>
@@ -107,6 +117,8 @@ export default function BusinessOnboardingScreen() {
               value={address}
               onChangeText={setAddress}
               placeholder="3922 W Sunset Blvd, Los Angeles, CA"
+              styles={styles}
+              theme={theme}
             />
             <FormField
               label="Phone"
@@ -114,6 +126,8 @@ export default function BusinessOnboardingScreen() {
               onChangeText={setPhone}
               placeholder="(323) 555-0100"
               keyboardType="phone-pad"
+              styles={styles}
+              theme={theme}
             />
             <FormField
               label="Website"
@@ -121,6 +135,8 @@ export default function BusinessOnboardingScreen() {
               onChangeText={setWebsite}
               placeholder="yourbusiness.com"
               keyboardType="url"
+              styles={styles}
+              theme={theme}
             />
           </Animated.View>
 
@@ -129,7 +145,7 @@ export default function BusinessOnboardingScreen() {
               onPress={finishOnboarding}
               style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}>
               <Text style={styles.primaryButtonText}>Create Business Profile</Text>
-              <Ionicons name="arrow-forward" size={18} color={T.onEmerald} />
+              <Ionicons name="arrow-forward" size={18} color={theme.onEmerald} />
             </Pressable>
           </Animated.View>
         </View>
@@ -138,108 +154,111 @@ export default function BusinessOnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: T.bg,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  eyebrow: {
-    color: T.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  title: {
-    color: T.text,
-    fontSize: 28,
-    fontFamily: BrandFonts.bold,
-    letterSpacing: -0.5,
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: T.textSecondary,
-    fontSize: 16,
-    lineHeight: 24,
-    fontFamily: BrandFonts.regular,
-    marginBottom: 20,
-  },
-  form: {
-    gap: 14,
-    flex: 1,
-  },
-  field: {
-    gap: 8,
-  },
-  fieldLabel: {
-    color: T.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  input: {
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: T.surface,
-    borderWidth: 1,
-    borderColor: T.border,
-    paddingHorizontal: 14,
-    color: T.text,
-    fontSize: 16,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: T.surface,
-    borderWidth: 1,
-    borderColor: T.borderLight,
-  },
-  chipSelected: {
-    backgroundColor: T.emerald,
-    borderColor: T.emerald,
-  },
-  chipText: {
-    color: T.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: T.onEmerald,
-  },
-  footer: {
-    paddingVertical: 16,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: T.emerald,
-    ...BrandShadow.button,
-  },
-  primaryButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  primaryButtonText: {
-    color: T.onEmerald,
-    fontSize: 16,
-    fontFamily: BrandFonts.bold,
-  },
-});
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    flex: {
+      flex: 1,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+    },
+    eyebrow: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: 1,
+      textTransform: 'uppercase' as const,
+      marginBottom: 8,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 28,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: -0.5,
+      marginBottom: 8,
+    },
+    subtitle: {
+      color: theme.textSecondary,
+      fontSize: 16,
+      lineHeight: 24,
+      fontFamily: BrandFonts.regular,
+      marginBottom: 20,
+    },
+    form: {
+      gap: 14,
+      flex: 1,
+    },
+    field: {
+      gap: 8,
+    },
+    fieldLabel: {
+      color: theme.text,
+      fontSize: 14,
+      fontFamily: BrandFonts.semiBold,
+    },
+    input: {
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 14,
+      color: theme.text,
+      fontSize: 16,
+      fontFamily: BrandFonts.regular,
+    },
+    chipsWrap: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 8,
+    },
+    chip: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+    },
+    chipSelected: {
+      backgroundColor: theme.emerald,
+      borderColor: theme.emerald,
+    },
+    chipText: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      fontFamily: BrandFonts.semiBold,
+    },
+    chipTextSelected: {
+      color: theme.onEmerald,
+    },
+    footer: {
+      paddingVertical: 16,
+    },
+    primaryButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: theme.emerald,
+      ...theme.shadowButton,
+    },
+    primaryButtonPressed: {
+      opacity: 0.9,
+      transform: [{ scale: 0.98 }],
+    },
+    primaryButtonText: {
+      color: theme.onEmerald,
+      fontSize: 16,
+      fontFamily: BrandFonts.bold,
+    },
+  });
+}

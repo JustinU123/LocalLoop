@@ -1,14 +1,16 @@
 import { Stack } from 'expo-router';
 
-import { Brand } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 
 export default function OnboardingLayout() {
+  const { theme } = useAppTheme();
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: 'fade',
-        contentStyle: { backgroundColor: Brand.bg },
+        contentStyle: { backgroundColor: theme.bg },
       }}>
       <Stack.Screen name="splash" options={{ animation: 'none' }} />
       <Stack.Screen name="welcome" />

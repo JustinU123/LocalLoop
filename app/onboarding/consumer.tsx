@@ -2,16 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { setOnboardingComplete } from '@/utils/onboarding-storage';
 
 const CATEGORIES = ['Food', 'Coffee', 'Clothing', 'Beauty', 'Fitness', 'More'];
 
 export default function ConsumerOnboardingScreen() {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(['Coffee', 'Food']));
 
@@ -54,7 +58,7 @@ export default function ConsumerOnboardingScreen() {
             }}
             style={[styles.locationCard, locationEnabled && styles.locationCardActive]}>
             <View style={styles.locationIconWrap}>
-              <Ionicons name="location" size={22} color={locationEnabled ? T.onEmerald : T.emerald} />
+              <Ionicons name="location" size={22} color={locationEnabled ? theme.onEmerald : theme.emerald} />
             </View>
             <View style={styles.locationText}>
               <Text style={styles.locationTitle}>
@@ -67,7 +71,7 @@ export default function ConsumerOnboardingScreen() {
             <Ionicons
               name={locationEnabled ? 'checkmark-circle' : 'ellipse-outline'}
               size={22}
-              color={locationEnabled ? T.emerald : T.textMuted}
+              color={locationEnabled ? theme.emerald : theme.textMuted}
             />
           </Pressable>
         </Animated.View>
@@ -94,7 +98,7 @@ export default function ConsumerOnboardingScreen() {
             onPress={finishOnboarding}
             style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}>
             <Text style={styles.primaryButtonText}>Continue to LocalLoop</Text>
-            <Ionicons name="arrow-forward" size={18} color={T.onEmerald} />
+            <Ionicons name="arrow-forward" size={18} color={theme.onEmerald} />
           </Pressable>
         </Animated.View>
       </View>
@@ -102,128 +106,131 @@ export default function ConsumerOnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: T.bg,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  eyebrow: {
-    color: T.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  title: {
-    color: T.text,
-    fontSize: 28,
-    fontFamily: BrandFonts.bold,
-    letterSpacing: -0.5,
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: T.textSecondary,
-    fontSize: 16,
-    lineHeight: 24,
-    fontFamily: BrandFonts.regular,
-    marginBottom: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    color: T.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  locationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: T.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: T.border,
-    padding: 14,
-  },
-  locationCardActive: {
-    borderColor: T.emerald,
-    backgroundColor: T.emeraldGlow,
-  },
-  locationIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: T.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationText: {
-    flex: 1,
-    gap: 2,
-  },
-  locationTitle: {
-    color: T.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  locationSubtitle: {
-    color: T.textSecondary,
-    fontSize: 13,
-  },
-  chipsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: T.surface,
-    borderWidth: 1,
-    borderColor: T.borderLight,
-  },
-  chipSelected: {
-    backgroundColor: T.emerald,
-    borderColor: T.emerald,
-  },
-  chipText: {
-    color: T.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  chipTextSelected: {
-    color: T.onEmerald,
-  },
-  footer: {
-    marginTop: 'auto',
-    paddingBottom: 16,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: T.emerald,
-    ...BrandShadow.button,
-  },
-  primaryButtonPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
-  },
-  primaryButtonText: {
-    color: T.onEmerald,
-    fontSize: 16,
-    fontFamily: BrandFonts.bold,
-  },
-});
+function createStyles(theme: AppThemeTokens) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 24,
+    },
+    eyebrow: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: 1,
+      textTransform: 'uppercase' as const,
+      marginBottom: 8,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 28,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: -0.5,
+      marginBottom: 8,
+    },
+    subtitle: {
+      color: theme.textSecondary,
+      fontSize: 16,
+      lineHeight: 24,
+      fontFamily: BrandFonts.regular,
+      marginBottom: 24,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 16,
+      fontFamily: BrandFonts.bold,
+      marginBottom: 12,
+    },
+    locationCard: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 14,
+      ...theme.shadowCard,
+    },
+    locationCardActive: {
+      borderColor: theme.emerald,
+      backgroundColor: theme.emeraldGlow,
+    },
+    locationIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: theme.surfaceElevated,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    locationText: {
+      flex: 1,
+      gap: 2,
+    },
+    locationTitle: {
+      color: theme.text,
+      fontSize: 15,
+      fontFamily: BrandFonts.bold,
+    },
+    locationSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 13,
+    },
+    chipsWrap: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 10,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 999,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+    },
+    chipSelected: {
+      backgroundColor: theme.emerald,
+      borderColor: theme.emerald,
+    },
+    chipText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontFamily: BrandFonts.semiBold,
+    },
+    chipTextSelected: {
+      color: theme.onEmerald,
+    },
+    footer: {
+      marginTop: 'auto' as const,
+      paddingBottom: 16,
+    },
+    primaryButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      gap: 8,
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: theme.emerald,
+      ...theme.shadowButton,
+    },
+    primaryButtonPressed: {
+      opacity: 0.9,
+      transform: [{ scale: 0.98 }],
+    },
+    primaryButtonText: {
+      color: theme.onEmerald,
+      fontSize: 16,
+      fontFamily: BrandFonts.bold,
+    },
+  });
+}
