@@ -1,7 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
-import { AccountType } from '@/utils/account-type';
+import { AccountType, getAccountTypeFromMetadata } from '@/utils/account-type';
 
 export async function getCurrentSession(): Promise<Session | null> {
   const { data, error } = await supabase.auth.getSession();
@@ -37,4 +37,42 @@ export async function updateUserAccountType(accountType: AccountType) {
 
 export function getAuthenticatedUser(user: User | null | undefined): User | null {
   return user ?? null;
+}
+
+export function getDisplayNameFromUser(user: User): string {
+  const metadata = user.user_metadata as Record<string, unknown> | undefined;
+
+  for (const key of ['display_name', 'full_name', 'name'] as const) {
+    const value = metadata?.[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  const email = user.email?.trim();
+  if (email) {
+    const [localPart] = email.split('@');
+    if (localPart) {
+      return localPart;
+    }
+  }
+
+  return 'LocalLoop member';
+}
+
+export function getAccountTypeLabel(accountType: AccountType | null): string | null {
+  if (accountType === 'consumer') {
+    return 'Consumer';
+  }
+  if (accountType === 'business') {
+    return 'Business';
+  }
+  return null;
+}
+
+export function getUserAccountType(user: User | null): AccountType | null {
+  if (!user) {
+    return null;
+  }
+  return getAccountTypeFromMetadata(user.user_metadata as Record<string, unknown> | undefined);
 }

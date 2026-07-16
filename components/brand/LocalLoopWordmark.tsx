@@ -21,7 +21,9 @@ export function LocalLoopWordmark({ style }: LocalLoopWordmarkProps) {
     <View style={[styles.wrap, style]}>
       <Text style={styles.wordmark} accessibilityLabel="LocalLoop">
         <Text style={[styles.local, { color: theme.text }]}>Local</Text>
-        <Text style={[styles.loop, { color: theme.coral }]}>Loop</Text>
+        <Text style={[styles.loopPart, { color: theme.coral }]}>L</Text>
+        <Text style={[styles.infinity, { color: theme.coral }]}>∞</Text>
+        <Text style={[styles.loopPart, { color: theme.coral }]}>p</Text>
       </Text>
     </View>
   );
@@ -39,7 +41,12 @@ const styles = StyleSheet.create({
   local: {
     letterSpacing: 0,
   },
-  loop: {
+  loopPart: {
     letterSpacing: -0.5,
+  },
+  infinity: {
+    letterSpacing: -0.5,
+    fontSize: 26,
+    lineHeight: HEADER_WORDMARK_LINE_HEIGHT,
   },
 });

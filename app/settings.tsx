@@ -1,13 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { User } from '@supabase/supabase-js';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { StyleSheet, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, type AppThemeTokens, type ThemePreference } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import {
+  getAccountTypeLabel,
+  getCurrentSession,
+  getDisplayNameFromUser,
+  getUserAccountType,
+  signOutUser,
+} from '@/utils/auth';
 
 const APPEARANCE_OPTIONS: {
   id: ThemePreference;
@@ -34,6 +50,78 @@ const APPEARANCE_OPTIONS: {
     icon: 'phone-portrait-outline',
   },
 ];
+
+function SectionLabel({ label, styles }: { label: string; styles: ReturnType<typeof createStyles> }) {
+  return <Text style={styles.sectionLabel}>{label}</Text>;
+}
+
+function GroupDivider({ styles }: { styles: ReturnType<typeof createStyles> }) {
+  return <View style={styles.groupDivider} />;
+}
+
+function SettingsRow({
+  icon,
+  label,
+  value,
+  showChevron = false,
+  comingSoon = false,
+  destructive = false,
+  onPress,
+  disabled = false,
+  loading = false,
+  styles,
+  theme,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value?: string;
+  showChevron?: boolean;
+  comingSoon?: boolean;
+  destructive?: boolean;
+  onPress?: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  styles: ReturnType<typeof createStyles>;
+  theme: AppThemeTokens;
+}) {
+  const iconColor = destructive ? theme.danger : theme.emerald;
+  const labelColor = destructive ? theme.danger : theme.text;
+  const rightText = comingSoon ? 'Coming soon' : value;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || comingSoon || loading || !onPress}
+      style={({ pressed }) => [
+        styles.settingsRow,
+        pressed && onPress && !disabled && !comingSoon && styles.settingsRowPressed,
+        (disabled || comingSoon) && styles.settingsRowDisabled,
+      ]}>
+      <View style={[styles.rowIconWrap, destructive && styles.rowIconWrapDestructive]}>
+        <Ionicons name={icon} size={18} color={iconColor} />
+      </View>
+      <Text style={[styles.rowLabel, { color: labelColor }]}>{label}</Text>
+      <View style={styles.rowTrailing}>
+        {loading ? (
+          <ActivityIndicator size="small" color={destructive ? theme.danger : theme.emerald} />
+        ) : rightText ? (
+          <Text
+            style={[
+              styles.rowValue,
+              comingSoon && styles.rowValueMuted,
+              destructive && styles.rowValueDestructive,
+            ]}
+            numberOfLines={1}>
+            {rightText}
+          </Text>
+        ) : null}
+        {showChevron ? (
+          <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
 
 function AppearanceOption({
   option,
@@ -75,12 +163,50 @@ function AppearanceOption({
 export default function SettingsScreen() {
   const { theme, preference, setPreference } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
 
-  const handleSelect = async (next: ThemePreference) => {
+  const loadUser = useCallback(async () => {
+    try {
+      const session = await getCurrentSession();
+      setUser(session?.user ?? null);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoadingUser(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
+
+  const handleSelectAppearance = async (next: ThemePreference) => {
     if (next === preference) return;
     Haptics.selectionAsync();
     await setPreference(next);
   };
+
+  const handleSignOut = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSigningOut(true);
+
+    try {
+      const { error } = await signOutUser();
+      if (error) {
+        return;
+      }
+      router.replace('/onboarding/welcome');
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const displayName = user ? getDisplayNameFromUser(user) : '—';
+  const email = user?.email ?? '—';
+  const accountType = getUserAccountType(user);
+  const accountTypeLabel = getAccountTypeLabel(accountType);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -88,37 +214,142 @@ export default function SettingsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
           <Ionicons name="chevron-back" size={22} color={theme.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>Account</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <LocalLoopWordmark style={styles.headerWordmark} />
-        <Text style={styles.sectionEyebrow}>Appearance</Text>
-        <Text style={styles.sectionTitle}>Theme</Text>
-        <Text style={styles.sectionSubtitle}>
-          Choose how LocalLoop looks on your device.
-        </Text>
 
+        <View style={styles.profileCard}>
+          <View style={styles.avatarWrap}>
+            {loadingUser ? (
+              <ActivityIndicator color={theme.emerald} />
+            ) : (
+              <Ionicons name="person" size={34} color={theme.textSecondary} />
+            )}
+          </View>
+          <Text style={styles.profileName}>{loadingUser ? 'Loading…' : displayName}</Text>
+          <Text style={styles.profileEmail}>{loadingUser ? ' ' : email}</Text>
+          {accountTypeLabel ? (
+            <View style={styles.accountTypePill}>
+              <Text style={styles.accountTypeText}>{accountTypeLabel}</Text>
+            </View>
+          ) : null}
+          <Pressable disabled style={styles.editProfileButton}>
+            <Ionicons name="create-outline" size={18} color={theme.textSecondary} />
+            <Text style={styles.editProfileText}>Edit Profile</Text>
+            <Text style={styles.editProfileBadge}>Coming soon</Text>
+          </Pressable>
+        </View>
+
+        <SectionLabel label="Account" styles={styles} />
+        <View style={styles.groupCard}>
+          <SettingsRow
+            icon="mail-outline"
+            label="Email"
+            value={loadingUser ? undefined : email}
+            styles={styles}
+            theme={theme}
+            disabled
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="person-circle-outline"
+            label="Account Type"
+            value={loadingUser ? undefined : accountTypeLabel ?? 'Not set'}
+            styles={styles}
+            theme={theme}
+            disabled
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="log-out-outline"
+            label="Sign Out"
+            destructive
+            onPress={handleSignOut}
+            loading={signingOut}
+            styles={styles}
+            theme={theme}
+          />
+        </View>
+
+        <SectionLabel label="Preferences" styles={styles} />
+        <Text style={styles.sectionSubtitle}>Appearance</Text>
+        <Text style={styles.sectionHint}>Choose how LocalLoop looks on your device.</Text>
         <View style={styles.options}>
           {APPEARANCE_OPTIONS.map((option) => (
             <AppearanceOption
               key={option.id}
               option={option}
               selected={preference === option.id}
-              onSelect={() => handleSelect(option.id)}
+              onSelect={() => handleSelectAppearance(option.id)}
               styles={styles}
               theme={theme}
             />
           ))}
         </View>
 
-        <View style={styles.aboutCard}>
-          <Text style={styles.aboutTitle}>LocalLoop</Text>
-          <Text style={styles.aboutText}>Version 1.0.0</Text>
-          <Text style={styles.aboutText}>Discover and support local businesses near you.</Text>
+        <View style={[styles.groupCard, styles.groupCardSpaced]}>
+          <SettingsRow
+            icon="notifications-outline"
+            label="Notifications"
+            comingSoon
+            styles={styles}
+            theme={theme}
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="location-outline"
+            label="Location"
+            comingSoon
+            styles={styles}
+            theme={theme}
+          />
+        </View>
+
+        <SectionLabel label="Support" styles={styles} />
+        <View style={styles.groupCard}>
+          <SettingsRow
+            icon="help-circle-outline"
+            label="Help & Support"
+            comingSoon
+            styles={styles}
+            theme={theme}
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="flag-outline"
+            label="Report a Problem"
+            comingSoon
+            styles={styles}
+            theme={theme}
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Privacy Policy"
+            comingSoon
+            styles={styles}
+            theme={theme}
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="document-text-outline"
+            label="Terms of Service"
+            comingSoon
+            styles={styles}
+            theme={theme}
+          />
+          <GroupDivider styles={styles} />
+          <SettingsRow
+            icon="information-circle-outline"
+            label="About LocalLoop"
+            value="Version 1.0.0"
+            styles={styles}
+            theme={theme}
+            disabled
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -159,37 +390,178 @@ function createStyles(theme: AppThemeTokens) {
       width: 40,
     },
     content: {
-      paddingHorizontal: 24,
-      paddingBottom: 32,
+      paddingHorizontal: 20,
+      paddingBottom: 40,
     },
     headerWordmark: {
       marginBottom: 10,
     },
-    sectionEyebrow: {
+    profileCard: {
+      alignItems: 'center' as const,
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 20,
+      marginBottom: 28,
+      ...theme.shadowCard,
+    },
+    avatarWrap: {
+      width: 84,
+      height: 84,
+      borderRadius: 42,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: 1,
+      borderColor: theme.border,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginBottom: 14,
+    },
+    profileName: {
+      color: theme.text,
+      fontSize: 22,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: -0.4,
+      marginBottom: 4,
+    },
+    profileEmail: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      fontFamily: BrandFonts.regular,
+      marginBottom: 10,
+    },
+    accountTypePill: {
+      backgroundColor: theme.coralGlow,
+      borderWidth: 1,
+      borderColor: theme.coral,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      marginBottom: 16,
+    },
+    accountTypeText: {
+      color: theme.coral,
+      fontSize: 12,
+      fontFamily: BrandFonts.semiBold,
+      letterSpacing: 0.2,
+    },
+    editProfileButton: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 8,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      opacity: 0.72,
+    },
+    editProfileText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontFamily: BrandFonts.semiBold,
+    },
+    editProfileBadge: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      fontFamily: BrandFonts.medium,
+      marginLeft: 4,
+    },
+    sectionLabel: {
       color: theme.textSecondary,
       fontSize: 12,
       fontFamily: BrandFonts.semiBold,
       letterSpacing: 1,
       textTransform: 'uppercase' as const,
       marginBottom: 8,
-      marginTop: 8,
-    },
-    sectionTitle: {
-      color: theme.text,
-      fontSize: 28,
-      fontFamily: BrandFonts.bold,
-      letterSpacing: -0.5,
-      marginBottom: 8,
     },
     sectionSubtitle: {
+      color: theme.text,
+      fontSize: 17,
+      fontFamily: BrandFonts.semiBold,
+      marginBottom: 4,
+    },
+    sectionHint: {
       color: theme.textSecondary,
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 14,
+      lineHeight: 20,
       fontFamily: BrandFonts.regular,
-      marginBottom: 24,
+      marginBottom: 14,
+    },
+    groupCard: {
+      backgroundColor: theme.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden' as const,
+      ...theme.shadowCard,
+    },
+    groupCardSpaced: {
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    groupDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.border,
+      marginLeft: 52,
+    },
+    settingsRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+      minHeight: 52,
+    },
+    settingsRowPressed: {
+      backgroundColor: theme.surfaceElevated,
+    },
+    settingsRowDisabled: {
+      opacity: 1,
+    },
+    rowIconWrap: {
+      width: 30,
+      height: 30,
+      borderRadius: 8,
+      backgroundColor: theme.emeraldGlow,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    rowIconWrapDestructive: {
+      backgroundColor: 'rgba(224, 85, 85, 0.12)',
+    },
+    rowLabel: {
+      flex: 1,
+      fontSize: 16,
+      fontFamily: BrandFonts.medium,
+    },
+    rowTrailing: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: 6,
+      maxWidth: '46%',
+    },
+    rowValue: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'right' as const,
+      flexShrink: 1,
+    },
+    rowValueMuted: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      fontFamily: BrandFonts.medium,
+    },
+    rowValueDestructive: {
+      color: theme.danger,
     },
     options: {
-      gap: 12,
+      gap: 10,
+      marginBottom: 8,
     },
     optionCard: {
       flexDirection: 'row' as const,
@@ -199,7 +571,7 @@ function createStyles(theme: AppThemeTokens) {
       borderRadius: 16,
       borderWidth: 1,
       borderColor: theme.border,
-      padding: 16,
+      padding: 14,
       ...theme.shadowCard,
     },
     optionCardSelected: {
@@ -211,9 +583,9 @@ function createStyles(theme: AppThemeTokens) {
       transform: [{ scale: 0.99 }],
     },
     optionIconWrap: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 42,
+      height: 42,
+      borderRadius: 21,
       backgroundColor: theme.surfaceElevated,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
@@ -242,27 +614,6 @@ function createStyles(theme: AppThemeTokens) {
       borderRadius: 11,
       borderWidth: 1.5,
       borderColor: theme.border,
-    },
-    aboutCard: {
-      marginTop: 32,
-      backgroundColor: theme.surface,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: theme.border,
-      padding: 18,
-      gap: 6,
-      ...theme.shadowCard,
-    },
-    aboutTitle: {
-      color: theme.text,
-      fontSize: 16,
-      fontFamily: BrandFonts.bold,
-    },
-    aboutText: {
-      color: theme.textSecondary,
-      fontSize: 14,
-      lineHeight: 20,
-      fontFamily: BrandFonts.regular,
     },
   });
 }
