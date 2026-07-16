@@ -1,98 +1,643 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Dimensions,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { BrandFonts, BrandRadius, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
+import { BUSINESSES, type Business } from '@/data/businesses';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const TRENDING_CARD_WIDTH = SCREEN_WIDTH * 0.72;
+const GEM_CARD_WIDTH = (SCREEN_WIDTH - 52) / 2;
+
+type Category = {
+  id: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+};
+
+const CATEGORIES: Category[] = [
+  { id: 'food', label: 'Food', icon: 'restaurant' },
+  { id: 'clothing', label: 'Clothing', icon: 'shirt' },
+  { id: 'coffee', label: 'Coffee', icon: 'cafe' },
+  { id: 'beauty', label: 'Beauty', icon: 'sparkles' },
+  { id: 'fitness', label: 'Fitness', icon: 'barbell' },
+  { id: 'more', label: 'More', icon: 'grid' },
+];
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function openBusinessProfile(id: string) {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  router.push(`/business/${id}`);
+}
+
+function CategoryChip({
+  category,
+  selected,
+  onPress,
+}: {
+  category: Category;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const progress = useSharedValue(selected ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withSpring(selected ? 1 : 0, {
+      damping: 18,
+      stiffness: 220,
+      mass: 0.6,
+    });
+  }, [selected, progress]);
+
+  const animatedChipStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [T.surfaceElevated, T.emerald]),
+    borderColor: interpolateColor(progress.value, [0, 1], [T.borderLight, T.emerald]),
+    transform: [{ scale: 1 + progress.value * 0.04 }],
+  }));
+
+  const animatedLabelStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [T.textSecondary, T.onEmerald]),
+  }));
+
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      style={[styles.chip, animatedChipStyle]}>
+      <Ionicons
+        name={category.icon}
+        size={15}
+        color={selected ? T.onEmerald : T.text}
+      />
+      <Animated.Text style={[styles.chipLabel, animatedLabelStyle]}>
+        {category.label}
+      </Animated.Text>
+    </AnimatedPressable>
+  );
+}
+
+function SaveButton({ saved, onPress }: { saved: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.saveButton, pressed && styles.saveButtonPressed]}
+      hitSlop={8}>
+      <Ionicons
+        name={saved ? 'heart' : 'heart-outline'}
+        size={18}
+        color={saved ? T.coral : '#FFFFFF'}
+      />
+    </Pressable>
+  );
+}
+
+function TrendingCard({
+  business,
+  saved,
+  onToggleSave,
+}: {
+  business: Business;
+  saved: boolean;
+  onToggleSave: () => void;
+}) {
+  return (
+    <View style={styles.trendingCard}>
+      <Pressable
+        style={({ pressed }) => [styles.trendingCardPressable, pressed && styles.cardPressed]}
+        onPress={() => openBusinessProfile(business.id)}>
+        <Image source={{ uri: business.image }} style={styles.trendingImage} contentFit="cover" transition={300} />
+        <View style={styles.imageOverlay} />
+        <View style={styles.trendingTopRow}>
+          <View style={styles.trendingBadge}>
+            <Text style={styles.trendingBadgeText}>Trending</Text>
+          </View>
+        </View>
+        <View style={styles.trendingFooter}>
+          <Text style={styles.trendingName}>{business.name}</Text>
+          <View style={styles.trendingMeta}>
+            <Text style={styles.trendingCategory}>{business.category}</Text>
+            <Text style={styles.trendingDot}>·</Text>
+            <Text style={styles.trendingDistance}>{business.distance}</Text>
+            <Text style={styles.trendingDot}>·</Text>
+            <Ionicons name="star" size={12} color="#FFD60A" />
+            <Text style={styles.trendingRating}>{business.rating.toFixed(1)}</Text>
+          </View>
+        </View>
+      </Pressable>
+      <View style={styles.trendingSaveWrap}>
+        <SaveButton saved={saved} onPress={onToggleSave} />
+      </View>
+    </View>
+  );
+}
+
+function HiddenGemCard({
+  business,
+  saved,
+  onToggleSave,
+}: {
+  business: Business;
+  saved: boolean;
+  onToggleSave: () => void;
+}) {
+  return (
+    <View style={styles.gemCard}>
+      <Pressable
+        style={({ pressed }) => [pressed && styles.cardPressed]}
+        onPress={() => openBusinessProfile(business.id)}>
+        <View style={styles.gemImageWrap}>
+          <Image source={{ uri: business.image }} style={styles.gemImage} contentFit="cover" transition={300} />
+          <View style={styles.gemImageOverlay} />
+        </View>
+        <View style={styles.gemBody}>
+          <Text style={styles.gemName} numberOfLines={1}>
+            {business.name}
+          </Text>
+          <View style={styles.gemMeta}>
+            <Text style={styles.gemCategory}>{business.category}</Text>
+            <Text style={styles.gemDistance}>{business.distance}</Text>
+          </View>
+          <View style={styles.gemRatingRow}>
+            <Ionicons name="star" size={11} color="#FFD60A" />
+            <Text style={styles.gemRating}>{business.rating.toFixed(1)}</Text>
+          </View>
+        </View>
+      </Pressable>
+      <View style={styles.gemSaveWrap}>
+        <SaveButton saved={saved} onPress={onToggleSave} />
+      </View>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [selectedCategory, setSelectedCategory] = useState('more');
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const toggleSave = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleCategoryPress = (id: string) => {
+    Haptics.selectionAsync();
+    setSelectedCategory(id);
+  };
+
+  const filteredBusinesses = useMemo(() => {
+    if (selectedCategory === 'more') return BUSINESSES;
+    return BUSINESSES.filter(
+      (business) => business.category.toLowerCase() === selectedCategory,
+    );
+  }, [selectedCategory]);
+
+  const trendingBusinesses = useMemo(
+    () => filteredBusinesses.filter((business) => business.trending),
+    [filteredBusinesses],
+  );
+
+  const hiddenGemBusinesses = useMemo(
+    () => filteredBusinesses.filter((business) => business.hiddenGem),
+    [filteredBusinesses],
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.eyebrow}>LocalLoop</Text>
+          <Text style={styles.title}>Discover Local</Text>
+        </View>
+        <Pressable style={styles.profileButton}>
+          <Ionicons name="person-circle-outline" size={30} color={T.text} />
+        </Pressable>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+        contentContainerStyle={styles.scrollContent}>
+        <View style={styles.stickyHeader}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={18} color={T.textSecondary} />
+            <TextInput
+              placeholder="Search restaurants, coffee, boutiques..."
+              placeholderTextColor={T.textSecondary}
+              style={styles.searchInput}
+            />
+            <Pressable style={styles.filterButton}>
+              <Ionicons name="options-outline" size={18} color={T.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsRow}>
+            {CATEGORIES.map((category) => (
+              <CategoryChip
+                key={category.id}
+                category={category}
+                selected={selectedCategory === category.id}
+                onPress={() => handleCategoryPress(category.id)}
+              />
+            ))}
+          </ScrollView>
+        </View>
+
+        <Animated.View
+          key={selectedCategory}
+          entering={FadeIn.duration(280)}
+          exiting={FadeOut.duration(180)}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Trending</Text>
+            <Pressable>
+              <Text style={styles.sectionAction}>See all</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToInterval={TRENDING_CARD_WIDTH + 14}
+            contentContainerStyle={styles.trendingRow}>
+            {trendingBusinesses.map((business) => (
+              <TrendingCard
+                key={business.id}
+                business={business}
+                saved={savedIds.has(business.id)}
+                onToggleSave={() => toggleSave(business.id)}
+              />
+            ))}
+          </ScrollView>
+
+          <View style={[styles.sectionHeader, styles.gemsSectionHeader]}>
+            <Text style={styles.sectionTitle}>⭐ Hidden Gems</Text>
+            <Text style={styles.sectionCount}>{hiddenGemBusinesses.length} spots</Text>
+          </View>
+
+          <View style={styles.gemGrid}>
+            {hiddenGemBusinesses.map((business) => (
+              <HiddenGemCard
+                key={business.id}
+                business={business}
+                saved={savedIds.has(business.id)}
+                onToggleSave={() => toggleSave(business.id)}
+              />
+            ))}
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      <Pressable
+        style={({ pressed }) => [styles.mapFab, pressed && styles.mapFabPressed]}
+        onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
+        <Ionicons name="map" size={22} color="#FFFFFF" />
+        <Text style={styles.mapFabLabel}>Map</Text>
+      </Pressable>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 14,
+  },
+  eyebrow: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  title: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontWeight: '700',
+    letterSpacing: -0.8,
+  },
+  profileButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1C1C1E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    paddingBottom: 120,
+  },
+  stickyHeader: {
+    backgroundColor: '#000000',
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#2C2C2E',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2E',
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  filterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#2C2C2E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipsRow: {
+    paddingHorizontal: 20,
+    gap: 10,
+    paddingBottom: 12,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  chipLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 22,
+    marginBottom: 14,
+  },
+  gemsSectionHeader: {
+    marginTop: 30,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  sectionAction: {
+    color: '#0A84FF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  sectionCount: {
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  trendingRow: {
+    paddingHorizontal: 20,
+    gap: 14,
+    paddingBottom: 4,
+  },
+  trendingCard: {
+    width: TRENDING_CARD_WIDTH,
+    height: 320,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#1C1C1E',
+    position: 'relative',
+  },
+  trendingCardPressable: {
+    flex: 1,
+  },
+  trendingSaveWrap: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    zIndex: 2,
+  },
+  trendingImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.22)',
+  },
+  trendingTopRow: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  trendingBadge: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  trendingBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  trendingFooter: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+  },
+  trendingName: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    marginBottom: 6,
+  },
+  trendingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trendingCategory: {
+    color: '#F2F2F7',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  trendingDistance: {
+    color: '#D1D1D6',
+    fontSize: 14,
+  },
+  trendingDot: {
+    color: '#8E8E93',
+    fontSize: 14,
+  },
+  trendingRating: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  saveButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonPressed: {
+    transform: [{ scale: 0.94 }],
+  },
+  cardPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.98 }],
+  },
+  gemGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  gemCard: {
+    width: GEM_CARD_WIDTH,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2E',
+    position: 'relative',
+  },
+  gemImageWrap: {
+    height: 128,
+    position: 'relative',
+  },
+  gemImage: {
+    width: '100%',
+    height: '100%',
+  },
+  gemImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+  },
+  gemSaveWrap: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    zIndex: 2,
+  },
+  gemBody: {
+    padding: 12,
+  },
+  gemName: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  gemMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  gemCategory: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  gemDistance: {
+    color: '#8E8E93',
+    fontSize: 12,
+  },
+  gemRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  gemRating: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  mapFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 28,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 999,
+    backgroundColor: '#0A84FF',
+    shadowColor: '#0A84FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  mapFabPressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.92,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  mapFabLabel: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

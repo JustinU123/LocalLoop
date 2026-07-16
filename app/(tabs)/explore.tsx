@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { Collapsible } from '@/components/ui/collapsible';
 import { ExternalLink } from '@/components/external-link';
@@ -7,7 +8,9 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { BusinessTheme as T } from '@/constants/business-theme';
 import { Fonts } from '@/constants/theme';
+import { resetOnboarding } from '@/utils/onboarding-storage';
 
 export default function TabTwoScreen() {
   return (
@@ -94,6 +97,21 @@ export default function TabTwoScreen() {
           ),
         })}
       </Collapsible>
+      {__DEV__ && (
+        <Collapsible title="Developer tools">
+          <ThemedText>Replay the first-time onboarding flow while testing.</ThemedText>
+          <Pressable
+            onPress={async () => {
+              await resetOnboarding();
+              router.replace('/onboarding/splash');
+            }}
+            style={styles.devButton}>
+            <ThemedText type="defaultSemiBold" style={styles.devButtonText}>
+              Replay Onboarding
+            </ThemedText>
+          </Pressable>
+        </Collapsible>
+      )}
     </ParallaxScrollView>
   );
 }
@@ -108,5 +126,18 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
+  },
+  devButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: T.emeraldGlow,
+    borderWidth: 1,
+    borderColor: T.emerald,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  devButtonText: {
+    color: T.emerald,
   },
 });

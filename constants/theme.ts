@@ -5,8 +5,10 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+import { Brand } from '@/constants/business-theme';
+
+const tintColorLight = Brand.emerald;
+const tintColorDark = Brand.emerald;
 
 export const Colors = {
   light: {
@@ -14,15 +16,15 @@ export const Colors = {
     background: '#fff',
     tint: tintColorLight,
     icon: '#687076',
-    tabIconDefault: '#687076',
+    tabIconDefault: Brand.gray,
     tabIconSelected: tintColorLight,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: Brand.offWhite,
+    background: Brand.bg,
     tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
+    icon: Brand.gray,
+    tabIconDefault: Brand.gray,
     tabIconSelected: tintColorDark,
   },
 };
