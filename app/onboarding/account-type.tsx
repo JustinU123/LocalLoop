@@ -66,7 +66,7 @@ function AccountOptionCard({ option }: { option: AccountOption }) {
       <Text style={styles.optionTitle}>{option.title}</Text>
       <Text style={styles.optionDescription}>{option.description}</Text>
       <View style={styles.optionChevron}>
-        <Ionicons name="arrow-forward" size={18} color={T.emerald} />
+        <Ionicons name="arrow-forward" size={18} color={T.textSecondary} />
       </View>
     </Pressable>
   );
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     gap: 28,
   },
   eyebrow: {
-    color: T.emerald,
+    color: T.textSecondary,
     fontSize: 12,
     fontFamily: BrandFonts.bold,
     letterSpacing: 1,

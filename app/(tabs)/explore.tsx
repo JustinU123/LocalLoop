@@ -15,11 +15,11 @@ import { resetOnboarding } from '@/utils/onboarding-storage';
 export default function TabTwoScreen() {
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#080808', dark: '#080808' }}
+      headerBackgroundColor={{ light: T.bg, dark: T.bg }}
       headerImage={
         <IconSymbol
           size={310}
-          color={T.emerald}
+          color={T.textSecondary}
           name="chevron.left.forwardslash.chevron.right"
           style={styles.headerImage}
         />
@@ -118,7 +118,7 @@ export default function TabTwoScreen() {
 
 const styles = StyleSheet.create({
   headerImage: {
-    color: '#808080',
+    color: T.textSecondary,
     bottom: -90,
     left: -35,
     position: 'absolute',

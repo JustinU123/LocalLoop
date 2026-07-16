@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   eyebrow: {
-    color: T.emerald,
+    color: T.textSecondary,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,

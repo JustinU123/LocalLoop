@@ -87,7 +87,7 @@ function CategoryChip({
       <Ionicons
         name={category.icon}
         size={15}
-        color={selected ? T.onEmerald : T.text}
+        color={selected ? T.onEmerald : T.textSecondary}
       />
       <Animated.Text style={[styles.chipLabel, animatedLabelStyle]}>
         {category.label}
@@ -105,7 +105,7 @@ function SaveButton({ saved, onPress }: { saved: boolean; onPress: () => void })
       <Ionicons
         name={saved ? 'heart' : 'heart-outline'}
         size={18}
-        color={saved ? T.coral : '#FFFFFF'}
+        color={saved ? T.emerald : '#FFFFFF'}
       />
     </Pressable>
   );
@@ -237,7 +237,7 @@ export default function HomeScreen() {
           <Text style={styles.title}>Discover Local</Text>
         </View>
         <Pressable style={styles.profileButton}>
-          <Ionicons name="person-circle-outline" size={30} color={T.text} />
+          <Ionicons name="person-circle-outline" size={30} color={T.textSecondary} />
         </Pressable>
       </View>
 
@@ -254,7 +254,7 @@ export default function HomeScreen() {
               style={styles.searchInput}
             />
             <Pressable style={styles.filterButton}>
-              <Ionicons name="options-outline" size={18} color={T.text} />
+              <Ionicons name="options-outline" size={18} color={T.textSecondary} />
             </Pressable>
           </View>
 
@@ -302,7 +302,7 @@ export default function HomeScreen() {
 
           <View style={[styles.sectionHeader, styles.gemsSectionHeader]}>
             <Text style={styles.sectionTitle}>⭐ Hidden Gems</Text>
-            <Text style={styles.sectionCount}>{hiddenGemBusinesses.length} spots</Text>
+            <Text style={styles.sectionCountAccent}>{hiddenGemBusinesses.length} spots</Text>
           </View>
 
           <View style={styles.gemGrid}>
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   eyebrow: {
-    color: T.emerald,
+    color: T.textSecondary,
     fontSize: 12,
     fontFamily: BrandFonts.semiBold,
     letterSpacing: 1,
@@ -448,6 +448,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: BrandFonts.medium,
   },
+  sectionCountAccent: {
+    color: T.coral,
+    fontSize: 14,
+    fontFamily: BrandFonts.semiBold,
+  },
   trendingRow: {
     paddingHorizontal: 20,
     gap: 14,
@@ -488,15 +493,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trendingBadge: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: T.coralGlow,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: BrandRadius.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: T.coral,
   },
   trendingBadgeText: {
-    color: '#FFFFFF',
+    color: T.coral,
     fontSize: 12,
     fontFamily: BrandFonts.bold,
   },

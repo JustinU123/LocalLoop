@@ -1,3 +1,12 @@
+/**
+ * LocalLoop brand colors with strict role assignments.
+ *
+ * Emerald  — primary actions, active nav, selected chips/tabs, follow, verified/open, success
+ * Coral    — discovery accents only (see-all, map FAB, promo badges, featured highlights)
+ * Off-white — headings and primary text
+ * Gray     — secondary text, inactive icons, unselected chips/tabs
+ * Background — app shell
+ */
 export const Brand = {
   bg: '#080808',
   offWhite: '#F5F5F5',
@@ -9,7 +18,9 @@ export const Brand = {
   border: '#222222',
   borderLight: '#2A2A2A',
   star: '#F5C542',
-  danger: '#FF6B4D',
+  /** Errors and closed status — intentionally separate from discovery coral */
+  danger: '#E05555',
+  closed: '#6B6B6B',
   onEmerald: '#FFFFFF',
   onCoral: '#FFFFFF',
   emeraldGlow: 'rgba(0, 195, 142, 0.14)',
@@ -57,7 +68,7 @@ export const BusinessTheme = {
   borderLight: Brand.borderLight,
   text: Brand.offWhite,
   textSecondary: Brand.gray,
-  textMuted: '#707070',
+  textMuted: Brand.gray,
   emerald: Brand.emerald,
   coral: Brand.coral,
   emeraldDark: '#00A374',
@@ -65,6 +76,7 @@ export const BusinessTheme = {
   coralGlow: Brand.coralGlow,
   star: Brand.star,
   danger: Brand.danger,
+  closed: Brand.closed,
   onEmerald: Brand.onEmerald,
   onCoral: Brand.onCoral,
 };

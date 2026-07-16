@@ -376,15 +376,15 @@ export default function BusinessProfileScreen() {
         <Text style={styles.aboutText}>{business.about}</Text>
         <View style={styles.aboutCard}>
           <View style={styles.aboutRow}>
-            <Ionicons name="time-outline" size={18} color={T.emerald} />
+            <Ionicons name="time-outline" size={18} color={T.textSecondary} />
             <Text style={styles.aboutRowText}>{business.hours}</Text>
           </View>
           <View style={styles.aboutRow}>
-            <Ionicons name="location-outline" size={18} color={T.emerald} />
+            <Ionicons name="location-outline" size={18} color={T.textSecondary} />
             <Text style={styles.aboutRowText}>{business.address}</Text>
           </View>
           <View style={styles.aboutRow}>
-            <Ionicons name="globe-outline" size={18} color={T.emerald} />
+            <Ionicons name="globe-outline" size={18} color={T.textSecondary} />
             <Text style={styles.aboutRowText}>{business.website}</Text>
           </View>
         </View>
@@ -574,10 +574,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   openPill: {
-    backgroundColor: 'rgba(52, 211, 153, 0.12)',
+    backgroundColor: T.emeraldGlow,
   },
   closedPill: {
-    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    backgroundColor: 'rgba(107, 107, 107, 0.16)',
   },
   statusDot: {
     width: 6,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: T.emerald,
   },
   closedDot: {
-    backgroundColor: T.danger,
+    backgroundColor: T.closed,
   },
   statusText: {
     color: T.text,
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   menuSectionTitle: {
-    color: T.emerald,
+    color: T.text,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemPrice: {
-    color: T.emerald,
+    color: T.text,
     fontSize: 15,
     fontWeight: '700',
   },

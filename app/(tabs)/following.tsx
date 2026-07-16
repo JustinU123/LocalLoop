@@ -55,7 +55,7 @@ function FollowingPostCard({
           onPress={onToggleLike}
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
           hitSlop={8}>
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? T.coral : T.text} />
+          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? T.coral : T.textSecondary} />
         </Pressable>
         <Pressable
           onPress={onToggleSave}
@@ -64,7 +64,7 @@ function FollowingPostCard({
           <Ionicons
             name={saved ? 'bookmark' : 'bookmark-outline'}
             size={22}
-            color={saved ? T.emerald : T.text}
+            color={saved ? T.emerald : T.textSecondary}
           />
         </Pressable>
       </View>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   eyebrow: {
-    color: T.emerald,
+    color: T.textSecondary,
     fontSize: 12,
     fontFamily: BrandFonts.semiBold,
     letterSpacing: 1,
