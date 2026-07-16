@@ -26,9 +26,19 @@ const shared = {
   closed: '#6B6B6B',
   onEmerald: '#FFFFFF',
   onCoral: '#FFFFFF',
+  onImageMuted: '#D1D5DB',
   emeraldDark: '#00A374',
   emeraldGlow: 'rgba(0, 195, 142, 0.14)',
   coralGlow: 'rgba(255, 107, 77, 0.14)',
+  imageScrim: 'rgba(0,0,0,0.22)',
+  imageScrimHeavy: 'rgba(0,0,0,0.45)',
+  imageScrimLight: 'rgba(0,0,0,0.12)',
+  imageScrimMedium: 'rgba(0,0,0,0.28)',
+  imageScrimSubtle: 'rgba(0,0,0,0.18)',
+  imageControlBg: 'rgba(0,0,0,0.45)',
+  imageControlBorder: 'rgba(255,255,255,0.18)',
+  imageControlBorderStrong: 'rgba(255,255,255,0.25)',
+  closedBadgeBg: 'rgba(107, 107, 107, 0.16)',
 } as const;
 
 const lightShadows = {
@@ -78,6 +88,16 @@ export type AppThemeTokens = {
   textSecondary: string;
   textMuted: string;
   onImage: string;
+  onImageMuted: string;
+  imageScrim: string;
+  imageScrimHeavy: string;
+  imageScrimLight: string;
+  imageScrimMedium: string;
+  imageScrimSubtle: string;
+  imageControlBg: string;
+  imageControlBorder: string;
+  imageControlBorderStrong: string;
+  closedBadgeBg: string;
   emerald: string;
   coral: string;
   emeraldDark: string;

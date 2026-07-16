@@ -88,3 +88,15 @@ export function useAppTheme(): AppThemeContextValue {
   }
   return context;
 }
+
+/** Respects Settings theme preference; falls back to system scheme outside the provider. */
+export function useResolvedColorScheme(): ColorScheme {
+  const context = useContext(AppThemeContext);
+  const systemScheme = useColorScheme();
+
+  if (context) {
+    return context.resolvedScheme;
+  }
+
+  return systemScheme === 'dark' ? 'dark' : 'light';
+}

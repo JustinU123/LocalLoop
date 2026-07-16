@@ -1,157 +1,132 @@
-import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Platform, Pressable } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocalLoopHeaderLogo } from '@/components/brand/local-loop-header-logo';
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { BrandFonts } from '@/constants/business-theme';
+import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { Fonts } from '@/constants/theme';
-import type { AppThemeTokens } from '@/constants/business-theme';
 import { resetOnboarding } from '@/utils/onboarding-storage';
 
-export default function TabTwoScreen() {
+export default function ExploreScreen() {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: theme.bg, dark: theme.bg }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color={theme.textSecondary}
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <LocalLoopHeaderLogo style={styles.headerLogo} />
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: BrandFonts.bold,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-      {__DEV__ && (
-        <Collapsible title="Developer tools">
-          <ThemedText>Replay the first-time onboarding flow while testing.</ThemedText>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <LocalLoopHeaderLogo style={styles.headerLogo} />
+          <Text style={styles.title}>Explore</Text>
+          <Text style={styles.subtitle}>
+            Curated collections and neighborhood guides are on the way.
+          </Text>
+        </View>
+
+        <View style={styles.comingSoonCard}>
+          <View style={styles.comingSoonIconWrap}>
+            <Ionicons name="compass-outline" size={28} color={theme.emerald} />
+          </View>
+          <Text style={styles.comingSoonTitle}>Coming soon</Text>
+          <Text style={styles.comingSoonText}>
+            Browse themed local collections, seasonal picks, and editor-curated maps from your
+            community.
+          </Text>
+        </View>
+
+        {__DEV__ ? (
           <Pressable
             onPress={async () => {
               await resetOnboarding();
               router.replace('/onboarding/splash');
             }}
             style={styles.devButton}>
-            <ThemedText type="defaultSemiBold" style={styles.devButtonText}>
-              Replay Onboarding
-            </ThemedText>
+            <Text style={styles.devButtonText}>Replay Onboarding</Text>
           </Pressable>
-        </Collapsible>
-      )}
-    </ParallaxScrollView>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 function createStyles(theme: AppThemeTokens) {
   return StyleSheet.create({
-  headerImage: {
-    color: theme.textSecondary,
-    bottom: -90,
-    left: -35,
-    position: 'absolute' as const,
-  },
-  titleContainer: {
-    flexDirection: 'column' as const,
-    alignItems: 'flex-start' as const,
-    gap: 4,
-  },
-  headerLogo: {
-    marginBottom: 0,
-  },
-  devButton: {
-    marginTop: 12,
-    alignSelf: 'flex-start' as const,
-    backgroundColor: theme.emeraldGlow,
-    borderWidth: 1,
-    borderColor: theme.emerald,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  devButtonText: {
-    color: theme.emerald,
-  },
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    content: {
+      paddingHorizontal: 20,
+      paddingBottom: 32,
+    },
+    header: {
+      paddingTop: 4,
+      paddingBottom: 20,
+    },
+    headerLogo: {
+      marginBottom: 4,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 34,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: -0.8,
+    },
+    subtitle: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      fontFamily: BrandFonts.regular,
+      marginTop: 6,
+      lineHeight: 22,
+    },
+    comingSoonCard: {
+      backgroundColor: theme.surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: theme.border,
+      padding: 24,
+      alignItems: 'center',
+      ...theme.shadowCard,
+    },
+    comingSoonIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: theme.emeraldGlow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    comingSoonTitle: {
+      color: theme.text,
+      fontSize: 20,
+      fontFamily: BrandFonts.bold,
+      marginBottom: 8,
+    },
+    comingSoonText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'center',
+    },
+    devButton: {
+      marginTop: 24,
+      alignSelf: 'flex-start',
+      backgroundColor: theme.emeraldGlow,
+      borderWidth: 1,
+      borderColor: theme.emerald,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    devButtonText: {
+      color: theme.emerald,
+      fontFamily: BrandFonts.semiBold,
+      fontSize: 14,
+    },
   });
 }

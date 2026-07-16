@@ -167,7 +167,7 @@ function TrendingCard({
             <Text style={styles.trendingDot}>·</Text>
             <Text style={styles.trendingDistance}>{business.distance}</Text>
             <Text style={styles.trendingDot}>·</Text>
-            <Ionicons name="star" size={12} color="#FFD60A" />
+            <Ionicons name="star" size={12} color={theme.star} />
             <Text style={styles.trendingRating}>{business.rating.toFixed(1)}</Text>
           </View>
         </View>
@@ -210,7 +210,7 @@ function HiddenGemCard({
             <Text style={styles.gemDistance}>{business.distance}</Text>
           </View>
           <View style={styles.gemRatingRow}>
-            <Ionicons name="star" size={11} color="#FFD60A" />
+            <Ionicons name="star" size={11} color={theme.star} />
             <Text style={styles.gemRating}>{business.rating.toFixed(1)}</Text>
           </View>
         </View>
@@ -517,7 +517,7 @@ function createStyles(theme: AppThemeTokens) {
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    backgroundColor: theme.imageScrim,
   },
   trendingTopRow: {
     position: 'absolute',
@@ -560,17 +560,17 @@ function createStyles(theme: AppThemeTokens) {
     gap: 6,
   },
   trendingCategory: {
-    color: theme.text,
+    color: theme.onImageMuted,
     fontSize: 14,
     fontFamily: BrandFonts.semiBold,
   },
   trendingDistance: {
-    color: theme.textSecondary,
+    color: theme.onImageMuted,
     fontSize: 14,
     fontFamily: BrandFonts.regular,
   },
   trendingDot: {
-    color: theme.textSecondary,
+    color: theme.onImageMuted,
     fontSize: 14,
   },
   trendingRating: {
@@ -582,9 +582,9 @@ function createStyles(theme: AppThemeTokens) {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: theme.imageControlBg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: theme.imageControlBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -621,7 +621,7 @@ function createStyles(theme: AppThemeTokens) {
   },
   gemImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: theme.imageScrimLight,
   },
   gemSaveWrap: {
     position: 'absolute',

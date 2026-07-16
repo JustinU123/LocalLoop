@@ -480,7 +480,7 @@ function createStyles(theme: AppThemeTokens) {
   },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.28)',
+    backgroundColor: theme.imageScrimMedium,
   },
   backButton: {
     position: 'absolute',
@@ -488,9 +488,9 @@ function createStyles(theme: AppThemeTokens) {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: theme.imageControlBg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: theme.imageControlBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -594,7 +594,7 @@ function createStyles(theme: AppThemeTokens) {
     backgroundColor: theme.emeraldGlow,
   },
   closedPill: {
-    backgroundColor: 'rgba(107, 107, 107, 0.16)',
+    backgroundColor: theme.closedBadgeBg,
   },
   statusDot: {
     width: 6,
@@ -747,7 +747,7 @@ function createStyles(theme: AppThemeTokens) {
   },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: theme.imageScrimSubtle,
   },
   videoPlayWrap: {
     ...StyleSheet.absoluteFillObject,
@@ -758,9 +758,9 @@ function createStyles(theme: AppThemeTokens) {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: theme.imageControlBg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: theme.imageControlBorderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -776,7 +776,7 @@ function createStyles(theme: AppThemeTokens) {
     gap: 4,
   },
   videoSideText: {
-    color: '#FFFFFF',
+    color: theme.onImage,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -787,13 +787,13 @@ function createStyles(theme: AppThemeTokens) {
     bottom: 20,
   },
   videoCaption: {
-    color: '#FFFFFF',
+    color: theme.onImage,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
   },
   videoViews: {
-    color: '#D1D5DB',
+    color: theme.onImageMuted,
     fontSize: 13,
   },
   photoRow: {
