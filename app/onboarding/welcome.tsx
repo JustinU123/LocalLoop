@@ -6,7 +6,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocalLoopWordmark } from '@/components/onboarding/local-loop-wordmark';
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BusinessTheme as T } from '@/constants/business-theme';
 
 function AuthButton({
   label,
@@ -35,7 +35,7 @@ function AuthButton({
       <Ionicons
         name={icon}
         size={20}
-        color={isApple ? '#FFFFFF' : isGoogle ? T.text : T.emerald}
+        color={isApple ? '#FFFFFF' : isGoogle ? T.text : T.onEmerald}
       />
       <Text
         style={[
@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     color: T.textSecondary,
     fontSize: 17,
     lineHeight: 26,
+    fontFamily: BrandFonts.regular,
     textAlign: 'center',
     maxWidth: 280,
   },
@@ -138,9 +139,7 @@ const styles = StyleSheet.create({
     borderColor: T.borderLight,
   },
   authButtonEmail: {
-    backgroundColor: T.emeraldGlow,
-    borderWidth: 1,
-    borderColor: T.emerald,
+    backgroundColor: T.emerald,
   },
   authButtonPressed: {
     opacity: 0.88,
@@ -148,15 +147,15 @@ const styles = StyleSheet.create({
   },
   authButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
   },
   authButtonTextApple: {
-    color: '#000000',
+    color: '#080808',
   },
   authButtonTextGoogle: {
     color: T.text,
   },
   authButtonTextEmail: {
-    color: T.emerald,
+    color: T.onEmerald,
   },
 });

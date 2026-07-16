@@ -14,7 +14,7 @@ import {
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
 import { setOnboardingComplete } from '@/utils/onboarding-storage';
 
 const CATEGORIES = ['Food', 'Coffee', 'Clothing', 'Beauty', 'Fitness', 'Other'];
@@ -129,7 +129,7 @@ export default function BusinessOnboardingScreen() {
               onPress={finishOnboarding}
               style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}>
               <Text style={styles.primaryButtonText}>Create Business Profile</Text>
-              <Ionicons name="arrow-forward" size={18} color="#052E1C" />
+              <Ionicons name="arrow-forward" size={18} color={T.onEmerald} />
             </Pressable>
           </Animated.View>
         </View>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   title: {
     color: T.text,
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
@@ -170,6 +170,7 @@ const styles = StyleSheet.create({
     color: T.textSecondary,
     fontSize: 16,
     lineHeight: 24,
+    fontFamily: BrandFonts.regular,
     marginBottom: 20,
   },
   form: {
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextSelected: {
-    color: '#052E1C',
+    color: T.onEmerald,
   },
   footer: {
     paddingVertical: 16,
@@ -230,14 +231,15 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 14,
     backgroundColor: T.emerald,
+    ...BrandShadow.button,
   },
   primaryButtonPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.98 }],
   },
   primaryButtonText: {
-    color: '#052E1C',
+    color: T.onEmerald,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
   },
 });

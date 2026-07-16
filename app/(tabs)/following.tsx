@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
 import { getBusinessById } from '@/data/businesses';
 import { FOLLOWING_POSTS, FollowingPost } from '@/data/following-posts';
 
@@ -55,7 +55,7 @@ function FollowingPostCard({
           onPress={onToggleLike}
           style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
           hitSlop={8}>
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? '#FF375F' : T.text} />
+          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? T.coral : T.text} />
         </Pressable>
         <Pressable
           onPress={onToggleSave}
@@ -73,7 +73,7 @@ function FollowingPostCard({
         onPress={onViewBusiness}
         style={({ pressed }) => [styles.viewBusinessButton, pressed && styles.viewBusinessButtonPressed]}>
         <Text style={styles.viewBusinessText}>View Business</Text>
-        <Ionicons name="arrow-forward" size={16} color="#052E1C" />
+        <Ionicons name="arrow-forward" size={16} color={T.onEmerald} />
       </Pressable>
     </View>
   );
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: T.emerald,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: BrandFonts.semiBold,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -172,12 +172,13 @@ const styles = StyleSheet.create({
   title: {
     color: T.text,
     fontSize: 34,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
     letterSpacing: -0.8,
   },
   subtitle: {
     color: T.textSecondary,
     fontSize: 15,
+    fontFamily: BrandFonts.regular,
     marginTop: 6,
     lineHeight: 22,
   },
@@ -188,6 +189,7 @@ const styles = StyleSheet.create({
     borderColor: T.border,
     marginBottom: 16,
     overflow: 'hidden',
+    ...BrandShadow.card,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -263,8 +265,8 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
   viewBusinessText: {
-    color: '#052E1C',
+    color: T.onEmerald,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
   },
 });

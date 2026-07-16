@@ -16,7 +16,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocalLoopWordmark } from '@/components/onboarding/local-loop-wordmark';
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
 import { signInWithEmail, signOutUser, signUpWithEmail } from '@/utils/auth';
 import { routeAfterAuthentication } from '@/utils/auth-navigation';
 import {
@@ -224,13 +224,13 @@ export default function EmailAuthScreen() {
                 loading && styles.primaryButtonDisabled,
               ]}>
               {loading ? (
-                <ActivityIndicator color="#052E1C" />
+                <ActivityIndicator color={T.onEmerald} />
               ) : (
                 <>
                   <Text style={styles.primaryButtonText}>
                     {isSignUp ? 'Create Account' : 'Sign In'}
                   </Text>
-                  <Ionicons name="arrow-forward" size={18} color="#052E1C" />
+                  <Ionicons name="arrow-forward" size={18} color={T.onEmerald} />
                 </>
               )}
             </Pressable>
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   title: {
     color: T.text,
     fontSize: 24,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
     letterSpacing: -0.4,
     textAlign: 'center',
   },
@@ -294,6 +294,7 @@ const styles = StyleSheet.create({
     color: T.textSecondary,
     fontSize: 15,
     lineHeight: 22,
+    fontFamily: BrandFonts.regular,
     textAlign: 'center',
     maxWidth: 320,
   },
@@ -364,6 +365,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: T.emerald,
     marginTop: 4,
+    ...BrandShadow.button,
   },
   primaryButtonPressed: {
     opacity: 0.9,
@@ -373,9 +375,9 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   primaryButtonText: {
-    color: '#052E1C',
+    color: T.onEmerald,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
   },
   signOutButton: {
     alignItems: 'center',

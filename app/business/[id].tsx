@@ -18,7 +18,7 @@ import {
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BusinessTheme as T } from '@/constants/business-theme';
 import {
   Business,
   BusinessReview,
@@ -65,7 +65,7 @@ function CompactActionButton({
       onPress={onPress}
       style={({ pressed }) => [styles.compactAction, pressed && styles.compactActionPressed]}>
       <View style={styles.compactActionCircle}>
-        <Ionicons name={icon} size={20} color="#052E1C" />
+        <Ionicons name={icon} size={20} color={T.onEmerald} />
       </View>
       <Text style={styles.compactActionLabel}>{label}</Text>
     </Pressable>
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   businessName: {
     color: T.text,
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
     letterSpacing: -0.4,
     textAlign: 'center',
   },
@@ -614,9 +614,9 @@ const styles = StyleSheet.create({
     borderColor: T.emerald,
   },
   followButtonText: {
-    color: '#052E1C',
+    color: T.onEmerald,
     fontSize: 15,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
   },
   followButtonTextActive: {
     color: T.emerald,
@@ -718,7 +718,7 @@ const styles = StyleSheet.create({
     height: VIDEO_HEIGHT,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    backgroundColor: T.bg,
   },
   videoItem: {
     width: '100%',
@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   emptyButtonText: {
-    color: '#052E1C',
-    fontWeight: '700',
+    color: T.onEmerald,
+    fontFamily: BrandFonts.bold,
   },
 });

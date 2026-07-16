@@ -6,7 +6,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BusinessTheme as T } from '@/constants/business-theme';
+import { BrandFonts, BrandShadow, BusinessTheme as T } from '@/constants/business-theme';
 import { updateUserAccountType } from '@/utils/auth';
 import { getOnboardingRouteForAccountType } from '@/utils/auth-navigation';
 
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: T.emerald,
     fontSize: 12,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: 8,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   title: {
     color: T.text,
     fontSize: 28,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
@@ -122,6 +122,7 @@ const styles = StyleSheet.create({
     color: T.textSecondary,
     fontSize: 16,
     lineHeight: 24,
+    fontFamily: BrandFonts.regular,
   },
   options: {
     gap: 16,
@@ -133,6 +134,7 @@ const styles = StyleSheet.create({
     borderColor: T.border,
     padding: 20,
     gap: 10,
+    ...BrandShadow.card,
   },
   optionCardPressed: {
     opacity: 0.92,
@@ -149,12 +151,13 @@ const styles = StyleSheet.create({
   optionTitle: {
     color: T.text,
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: BrandFonts.bold,
   },
   optionDescription: {
     color: T.textSecondary,
     fontSize: 14,
     lineHeight: 21,
+    fontFamily: BrandFonts.regular,
     paddingRight: 24,
   },
   optionChevron: {
