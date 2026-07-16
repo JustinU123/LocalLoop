@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LocalLoopHeaderLogo } from '@/components/brand/local-loop-header-logo';
+import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -267,7 +267,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View>
-          <LocalLoopHeaderLogo style={styles.headerLogo} />
+          <LocalLoopWordmark style={styles.headerWordmark} />
           <Text style={styles.title}>Discover Local</Text>
         </View>
         <Pressable style={styles.profileButton} onPress={() => router.push('/settings')}>
@@ -382,8 +382,8 @@ function createStyles(theme: AppThemeTokens) {
     paddingTop: 4,
     paddingBottom: 14,
   },
-  headerLogo: {
-    marginBottom: 4,
+  headerWordmark: {
+    marginBottom: 10,
   },
   title: {
     color: theme.text,

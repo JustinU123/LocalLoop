@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LocalLoopHeaderLogo } from '@/components/brand/local-loop-header-logo';
+import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, type AppThemeTokens, type ThemePreference } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -95,7 +95,7 @@ export default function SettingsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}>
-        <LocalLoopHeaderLogo style={styles.headerLogo} />
+        <LocalLoopWordmark style={styles.headerWordmark} />
         <Text style={styles.sectionEyebrow}>Appearance</Text>
         <Text style={styles.sectionTitle}>Theme</Text>
         <Text style={styles.sectionSubtitle}>
@@ -162,8 +162,8 @@ function createStyles(theme: AppThemeTokens) {
       paddingHorizontal: 24,
       paddingBottom: 32,
     },
-    headerLogo: {
-      marginBottom: 4,
+    headerWordmark: {
+      marginBottom: 10,
     },
     sectionEyebrow: {
       color: theme.textSecondary,

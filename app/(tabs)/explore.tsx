@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LocalLoopHeaderLogo } from '@/components/brand/local-loop-header-logo';
+import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -19,7 +19,7 @@ export default function ExploreScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <LocalLoopHeaderLogo style={styles.headerLogo} />
+          <LocalLoopWordmark style={styles.headerWordmark} />
           <Text style={styles.title}>Explore</Text>
           <Text style={styles.subtitle}>
             Curated collections and neighborhood guides are on the way.
@@ -66,8 +66,8 @@ function createStyles(theme: AppThemeTokens) {
       paddingTop: 4,
       paddingBottom: 20,
     },
-    headerLogo: {
-      marginBottom: 4,
+    headerWordmark: {
+      marginBottom: 10,
     },
     title: {
       color: theme.text,
