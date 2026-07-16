@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-const headerLogo = require('@/assets/images/localloop-header-logo.png');
+const headerLogo = require('@/assets/images/localloop-header-logo-horizontal.png');
 
 /** Native asset dimensions — used only to preserve aspect ratio at render time. */
 const HEADER_LOGO_ASPECT_RATIO = 1536 / 1024;
