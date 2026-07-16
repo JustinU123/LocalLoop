@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LocalLoopHeaderLogo } from '@/components/brand/local-loop-header-logo';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -148,7 +149,7 @@ export default function FollowingScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>LocalLoop</Text>
+            <LocalLoopHeaderLogo style={styles.headerLogo} />
             <Text style={styles.title}>Following</Text>
             <Text style={styles.subtitle}>Promotions and updates from businesses you follow</Text>
           </View>
@@ -172,12 +173,7 @@ function createStyles(theme: AppThemeTokens) {
       paddingTop: 4,
       paddingBottom: 20,
     },
-    eyebrow: {
-      color: theme.textSecondary,
-      fontSize: 12,
-      fontFamily: BrandFonts.semiBold,
-      letterSpacing: 1,
-      textTransform: 'uppercase' as const,
+    headerLogo: {
       marginBottom: 4,
     },
     title: {

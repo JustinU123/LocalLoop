@@ -2,6 +2,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { StyleSheet, Platform, Pressable } from 'react-native';
 
+import { LocalLoopHeaderLogo } from '@/components/brand/local-loop-header-logo';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ExternalLink } from '@/components/external-link';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
@@ -31,6 +32,7 @@ export default function TabTwoScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
+        <LocalLoopHeaderLogo style={styles.headerLogo} />
         <ThemedText
           type="title"
           style={{
@@ -131,8 +133,12 @@ function createStyles(theme: AppThemeTokens) {
     position: 'absolute' as const,
   },
   titleContainer: {
-    flexDirection: 'row' as const,
-    gap: 8,
+    flexDirection: 'column' as const,
+    alignItems: 'flex-start' as const,
+    gap: 4,
+  },
+  headerLogo: {
+    marginBottom: 0,
   },
   devButton: {
     marginTop: 12,
