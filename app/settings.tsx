@@ -17,6 +17,7 @@ import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, type AppThemeTokens, type ThemePreference } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useNotifications } from '@/contexts/notifications-context';
+import { useLocationSettings } from '@/contexts/location-settings-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   getAccountTypeLabel,
@@ -172,6 +173,7 @@ export default function SettingsScreen() {
   const { theme, preference, setPreference } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { unreadCount } = useNotifications();
+  const { permissionGranted, cityLabel } = useLocationSettings();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
@@ -316,7 +318,12 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="location-outline"
             label="Location"
-            comingSoon
+            value={permissionGranted && cityLabel ? cityLabel : permissionGranted ? 'Detecting…' : 'Off'}
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/location');
+            }}
             styles={styles}
             theme={theme}
           />
@@ -327,7 +334,11 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="help-circle-outline"
             label="Help & Support"
-            comingSoon
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/help-support');
+            }}
             styles={styles}
             theme={theme}
           />
@@ -335,15 +346,38 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="flag-outline"
             label="Report a Problem"
-            comingSoon
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/report-problem');
+            }}
             styles={styles}
             theme={theme}
           />
           <GroupDivider styles={styles} />
           <SettingsRow
+            icon="storefront-outline"
+            label="Request a Business"
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/request-business');
+            }}
+            styles={styles}
+            theme={theme}
+          />
+        </View>
+
+        <SectionLabel label="Legal" styles={styles} />
+        <View style={styles.groupCard}>
+          <SettingsRow
             icon="shield-checkmark-outline"
             label="Privacy Policy"
-            comingSoon
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/privacy-policy');
+            }}
             styles={styles}
             theme={theme}
           />
@@ -351,18 +385,28 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="document-text-outline"
             label="Terms of Service"
-            comingSoon
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/terms-of-service');
+            }}
             styles={styles}
             theme={theme}
           />
-          <GroupDivider styles={styles} />
+        </View>
+
+        <SectionLabel label="About" styles={styles} />
+        <View style={styles.groupCard}>
           <SettingsRow
             icon="information-circle-outline"
             label="About LocalLoop"
-            value="Version 1.0.0"
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/about');
+            }}
             styles={styles}
             theme={theme}
-            disabled
           />
         </View>
       </ScrollView>

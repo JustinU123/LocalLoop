@@ -14,13 +14,12 @@ import { RadiusSelector } from '@/components/promotions/radius-selector';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import {
-  DEFAULT_RADIUS,
   FOLLOWING_PROMOTIONS,
   NEARBY_PROMOTIONS,
   type Promotion,
-  type RadiusOption,
 } from '@/data/promotions';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useLocationSettings } from '@/contexts/location-settings-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
 import { openBusinessProfile } from '@/utils/open-business-profile';
 
@@ -33,8 +32,8 @@ const SEGMENT_OPTIONS: { id: PromotionsSegment; label: string }[] = [
 
 export default function PromotionsScreen() {
   const styles = useThemedStyles(createStyles);
+  const { searchRadius, setSearchRadius } = useLocationSettings();
   const [segment, setSegment] = useState<PromotionsSegment>('following');
-  const [selectedRadius, setSelectedRadius] = useState<RadiusOption>(DEFAULT_RADIUS);
   const { isPromotionSaved, togglePromotionSaved } = useSavedItems();
 
   const promotions = useMemo(() => {
@@ -42,8 +41,8 @@ export default function PromotionsScreen() {
       return FOLLOWING_PROMOTIONS;
     }
 
-    return NEARBY_PROMOTIONS.filter((promotion) => promotion.distanceMiles <= selectedRadius);
-  }, [segment, selectedRadius]);
+    return NEARBY_PROMOTIONS.filter((promotion) => promotion.distanceMiles <= searchRadius);
+  }, [segment, searchRadius]);
 
   const handleViewBusiness = useCallback((businessId: string) => {
     openBusinessProfile(businessId);
@@ -73,7 +72,7 @@ export default function PromotionsScreen() {
       {segment === 'nearby' ? (
         <View style={styles.radiusSection}>
           <Text style={styles.radiusLabel}>Search radius</Text>
-          <RadiusSelector selectedRadius={selectedRadius} onSelect={setSelectedRadius} />
+          <RadiusSelector selectedRadius={searchRadius} onSelect={setSearchRadius} />
         </View>
       ) : null}
     </View>

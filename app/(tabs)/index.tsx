@@ -348,7 +348,10 @@ export default function HomeScreen() {
 
       <Pressable
         style={({ pressed }) => [styles.mapFab, pressed && styles.mapFabPressed]}
-        onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}>
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push('/map');
+        }}>
         <Ionicons name="map" size={22} color={theme.onCoral} />
         <Text style={styles.mapFabLabel}>Map</Text>
       </Pressable>

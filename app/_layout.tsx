@@ -13,6 +13,7 @@ import 'react-native-reanimated';
 
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
 import { NotificationsProvider } from '@/contexts/notifications-context';
+import { LocationSettingsProvider } from '@/contexts/location-settings-context';
 import { SavedItemsProvider } from '@/contexts/saved-items-context';
 
 function RootNavigation() {
@@ -65,6 +66,14 @@ function RootNavigation() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="location" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="help-support" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="report-problem" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="request-business" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="privacy-policy" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="terms-of-service" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="about" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="map" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
@@ -77,9 +86,11 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <SavedItemsProvider>
-        <NotificationsProvider>
-          <RootNavigation />
-        </NotificationsProvider>
+        <LocationSettingsProvider>
+          <NotificationsProvider>
+            <RootNavigation />
+          </NotificationsProvider>
+        </LocationSettingsProvider>
       </SavedItemsProvider>
     </AppThemeProvider>
   );
