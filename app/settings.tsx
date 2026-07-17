@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, type AppThemeTokens, type ThemePreference } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useNotifications } from '@/contexts/notifications-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   getAccountTypeLabel,
@@ -64,6 +65,7 @@ function SettingsRow({
   label,
   value,
   showChevron = false,
+  badgeCount,
   comingSoon = false,
   destructive = false,
   onPress,
@@ -76,6 +78,7 @@ function SettingsRow({
   label: string;
   value?: string;
   showChevron?: boolean;
+  badgeCount?: number;
   comingSoon?: boolean;
   destructive?: boolean;
   onPress?: () => void;
@@ -114,6 +117,11 @@ function SettingsRow({
             numberOfLines={1}>
             {rightText}
           </Text>
+        ) : null}
+        {badgeCount && badgeCount > 0 ? (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>{badgeCount}</Text>
+          </View>
         ) : null}
         {showChevron ? (
           <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
@@ -163,6 +171,7 @@ function AppearanceOption({
 export default function SettingsScreen() {
   const { theme, preference, setPreference } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { unreadCount } = useNotifications();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
@@ -294,7 +303,12 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="notifications-outline"
             label="Notifications"
-            comingSoon
+            showChevron
+            badgeCount={unreadCount}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/notifications');
+            }}
             styles={styles}
             theme={theme}
           />
@@ -558,6 +572,20 @@ function createStyles(theme: AppThemeTokens) {
     },
     rowValueDestructive: {
       color: theme.danger,
+    },
+    unreadBadge: {
+      minWidth: 22,
+      height: 22,
+      borderRadius: 11,
+      paddingHorizontal: 6,
+      backgroundColor: theme.emerald,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    unreadBadgeText: {
+      color: theme.onEmerald,
+      fontSize: 12,
+      fontFamily: BrandFonts.bold,
     },
     options: {
       gap: 10,

@@ -12,6 +12,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
+import { NotificationsProvider } from '@/contexts/notifications-context';
 import { SavedItemsProvider } from '@/contexts/saved-items-context';
 
 function RootNavigation() {
@@ -63,6 +64,7 @@ function RootNavigation() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
@@ -75,7 +77,9 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <SavedItemsProvider>
-        <RootNavigation />
+        <NotificationsProvider>
+          <RootNavigation />
+        </NotificationsProvider>
       </SavedItemsProvider>
     </AppThemeProvider>
   );
