@@ -18,6 +18,7 @@ const MAPPING = {
   'heart.fill': 'favorite',
   'tag.fill': 'local-offer',
   'paperplane.fill': 'send',
+  'bookmark.fill': 'bookmark',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
 } as IconMapping;

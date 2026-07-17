@@ -12,6 +12,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
+import { SavedItemsProvider } from '@/contexts/saved-items-context';
 
 function RootNavigation() {
   const { theme, isReady } = useAppTheme();
@@ -73,7 +74,9 @@ function RootNavigation() {
 export default function RootLayout() {
   return (
     <AppThemeProvider>
-      <RootNavigation />
+      <SavedItemsProvider>
+        <RootNavigation />
+      </SavedItemsProvider>
     </AppThemeProvider>
   );
 }

@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
@@ -22,6 +21,7 @@ import {
   type RadiusOption,
 } from '@/data/promotions';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useSavedItems } from '@/contexts/saved-items-context';
 import { openBusinessProfile } from '@/utils/open-business-profile';
 
 type PromotionsSegment = 'following' | 'nearby';
@@ -35,7 +35,7 @@ export default function PromotionsScreen() {
   const styles = useThemedStyles(createStyles);
   const [segment, setSegment] = useState<PromotionsSegment>('following');
   const [selectedRadius, setSelectedRadius] = useState<RadiusOption>(DEFAULT_RADIUS);
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const { isPromotionSaved, togglePromotionSaved } = useSavedItems();
 
   const promotions = useMemo(() => {
     if (segment === 'following') {
@@ -45,19 +45,6 @@ export default function PromotionsScreen() {
     return NEARBY_PROMOTIONS.filter((promotion) => promotion.distanceMiles <= selectedRadius);
   }, [segment, selectedRadius]);
 
-  const toggleSave = useCallback((id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
   const handleViewBusiness = useCallback((businessId: string) => {
     openBusinessProfile(businessId);
   }, []);
@@ -66,12 +53,12 @@ export default function PromotionsScreen() {
     ({ item }) => (
       <PromotionCard
         promotion={item}
-        saved={savedIds.has(item.id)}
-        onToggleSave={() => toggleSave(item.id)}
+        saved={isPromotionSaved(item.id)}
+        onToggleSave={() => togglePromotionSaved(item)}
         onViewBusiness={() => handleViewBusiness(item.businessId)}
       />
     ),
-    [handleViewBusiness, savedIds, toggleSave],
+    [handleViewBusiness, isPromotionSaved, togglePromotionSaved],
   );
 
   const listHeader = (

@@ -25,6 +25,7 @@ import {
   getInitiallyFollowedBusinessIds,
 } from '@/data/explore-posts';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useSavedItems } from '@/contexts/saved-items-context';
 import { openBusinessProfile } from '@/utils/open-business-profile';
 import { resetOnboarding } from '@/utils/onboarding-storage';
 
@@ -35,7 +36,7 @@ export default function ExploreScreen() {
     () => getInitiallyFollowedBusinessIds(),
   );
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const { isPostSaved, togglePostSaved } = useSavedItems();
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>(() =>
     Object.fromEntries(EXPLORE_POSTS.map((post) => [post.id, post.likeCount])),
   );
@@ -65,19 +66,6 @@ export default function ExploreScreen() {
         }));
       }
 
-      return next;
-    });
-  }, []);
-
-  const toggleSave = useCallback((postId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
       return next;
     });
   }, []);
@@ -122,10 +110,10 @@ export default function ExploreScreen() {
         showDistance={segment === 'nearby'}
         isFollowing={followedBusinessIds.has(item.businessId)}
         liked={likedIds.has(item.id)}
-        saved={savedIds.has(item.id)}
+        saved={isPostSaved(item.id)}
         likeCount={likeCounts[item.id] ?? item.likeCount}
         onToggleLike={() => toggleLike(item)}
-        onToggleSave={() => toggleSave(item.id)}
+        onToggleSave={() => togglePostSaved(item)}
         onToggleFollow={() => toggleFollow(item.businessId)}
         onPressBusiness={() => handleViewBusiness(item.businessId)}
         onPressComments={handleComments}
@@ -136,10 +124,10 @@ export default function ExploreScreen() {
       segment,
       followedBusinessIds,
       likedIds,
-      savedIds,
       likeCounts,
       toggleLike,
-      toggleSave,
+      togglePostSaved,
+      isPostSaved,
       toggleFollow,
       handleViewBusiness,
       handleComments,

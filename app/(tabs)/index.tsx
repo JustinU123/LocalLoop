@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { BUSINESSES, type Business } from '@/data/businesses';
 
@@ -225,21 +226,8 @@ function HiddenGemCard({
 export default function HomeScreen() {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { isBusinessSaved, toggleBusinessSaved } = useSavedItems();
   const [selectedCategory, setSelectedCategory] = useState('more');
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-
-  const toggleSave = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSavedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   const handleCategoryPress = (id: string) => {
     Haptics.selectionAsync();
@@ -330,8 +318,8 @@ export default function HomeScreen() {
               <TrendingCard
                 key={business.id}
                 business={business}
-                saved={savedIds.has(business.id)}
-                onToggleSave={() => toggleSave(business.id)}
+                saved={isBusinessSaved(business.id)}
+                onToggleSave={() => toggleBusinessSaved(business)}
                 theme={theme}
                 styles={styles}
               />
@@ -348,8 +336,8 @@ export default function HomeScreen() {
               <HiddenGemCard
                 key={business.id}
                 business={business}
-                saved={savedIds.has(business.id)}
-                onToggleSave={() => toggleSave(business.id)}
+                saved={isBusinessSaved(business.id)}
+                onToggleSave={() => toggleBusinessSaved(business)}
                 theme={theme}
                 styles={styles}
               />

@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   Business,
@@ -329,7 +330,8 @@ export default function BusinessProfileScreen() {
   const business = useMemo(() => getBusinessById(id ?? ''), [id]);
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [following, setFollowing] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { isBusinessSaved, toggleBusinessSaved } = useSavedItems();
+  const saved = business ? isBusinessSaved(business.id) : false;
 
   const tabRows = useMemo(
     () => (business ? buildTabRows(activeTab, business) : []),
@@ -479,8 +481,9 @@ export default function BusinessProfileScreen() {
               setFollowing((value) => !value);
             }}
             onToggleSave={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setSaved((value) => !value);
+              if (business) {
+                toggleBusinessSaved(business);
+              }
             }}
             onShare={handleShare}
           />
