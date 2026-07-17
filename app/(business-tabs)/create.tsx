@@ -26,12 +26,20 @@ export default function BusinessCreateScreen() {
               title={option.title}
               description={option.description}
               icon={option.icon}
-              onPress={() =>
+              onPress={() => {
+                if (option.id === 'photo-post') {
+                  router.push('/business-create-photo');
+                  return;
+                }
+                if (option.id === 'video-post') {
+                  router.push('/business-create-video');
+                  return;
+                }
                 router.push({
                   pathname: '/create-option',
                   params: { type: option.id },
-                })
-              }
+                });
+              }}
             />
           ))}
         </View>

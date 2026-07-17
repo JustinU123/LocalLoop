@@ -69,6 +69,9 @@ function RootNavigation() {
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="current-mode" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="create-option" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-create-photo" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-create-video" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-media-preview" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="account-type" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-verification" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-verification-pending" options={{ animation: 'slide_from_right' }} />

@@ -11,7 +11,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "LocalLoop uses your location to show nearby independent businesses on the map."
+        "NSLocationWhenInUseUsageDescription": "LocalLoop uses your location to show nearby independent businesses on the map.",
+        "NSCameraUsageDescription": "LocalLoop uses your camera so verified businesses can create photos and videos for their business profile.",
+        "NSPhotoLibraryUsageDescription": "LocalLoop uses your photo library so verified businesses can select photos and videos to share.",
+        "NSMicrophoneUsageDescription": "LocalLoop uses your microphone so verified businesses can record videos for their business profile."
       }
     },
     "android": {
@@ -51,6 +54,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "LocalLoop uses your location to show nearby independent businesses on the map."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "LocalLoop uses your photo library so verified businesses can select photos and videos to share.",
+          "cameraPermission": "LocalLoop uses your camera so verified businesses can create photos and videos for their business profile.",
+          "microphonePermission": "LocalLoop uses your microphone so verified businesses can record videos for their business profile."
         }
       ]
     ],

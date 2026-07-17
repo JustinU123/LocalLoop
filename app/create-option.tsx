@@ -19,6 +19,9 @@ export default function CreateOptionScreen() {
   const optionId = (option?.id ?? 'photo-post') as BusinessCreateOptionId;
 
   useEffect(() => {
+    if (optionId === 'photo-post' || optionId === 'video-post') {
+      return;
+    }
     Alert.alert('Coming soon', CREATE_OPTION_MESSAGES[optionId]);
   }, [optionId]);
 
