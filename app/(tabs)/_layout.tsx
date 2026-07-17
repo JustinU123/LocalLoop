@@ -4,9 +4,11 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { BrandFonts } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useConsumerTabGuard } from '@/hooks/use-app-mode-guard';
 
 export default function TabLayout() {
   const { theme } = useAppTheme();
+  useConsumerTabGuard();
 
   return (
     <Tabs

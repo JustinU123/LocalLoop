@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { User } from '@supabase/supabase-js';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -15,15 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, type AppThemeTokens, type ThemePreference } from '@/constants/business-theme';
+import { useAccountMode } from '@/contexts/account-mode-context';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useNotifications } from '@/contexts/notifications-context';
 import { useLocationSettings } from '@/contexts/location-settings-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
-  getAccountTypeLabel,
   getCurrentSession,
   getDisplayNameFromUser,
-  getUserAccountType,
   signOutUser,
 } from '@/utils/auth';
 
@@ -174,6 +173,13 @@ export default function SettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const { unreadCount } = useNotifications();
   const { permissionGranted, cityLabel } = useLocationSettings();
+  const {
+    accountExperienceLabel,
+    verificationStatusLabel,
+    currentModeLabel,
+    canAccessBusinessDashboard,
+    refreshAccountMode,
+  } = useAccountMode();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
@@ -189,9 +195,12 @@ export default function SettingsScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    loadUser();
-  }, [loadUser]);
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAccountMode();
+      void loadUser();
+    }, [refreshAccountMode, loadUser]),
+  );
 
   const handleSelectAppearance = async (next: ThemePreference) => {
     if (next === preference) return;
@@ -216,8 +225,8 @@ export default function SettingsScreen() {
 
   const displayName = user ? getDisplayNameFromUser(user) : '—';
   const email = user?.email ?? '—';
-  const accountType = getUserAccountType(user);
-  const accountTypeLabel = getAccountTypeLabel(accountType);
+  const profileExperienceLabel =
+    accountExperienceLabel === 'Choose account type' ? null : accountExperienceLabel;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -242,9 +251,9 @@ export default function SettingsScreen() {
           </View>
           <Text style={styles.profileName}>{loadingUser ? 'Loading…' : displayName}</Text>
           <Text style={styles.profileEmail}>{loadingUser ? ' ' : email}</Text>
-          {accountTypeLabel ? (
+          {profileExperienceLabel ? (
             <View style={styles.accountTypePill}>
-              <Text style={styles.accountTypeText}>{accountTypeLabel}</Text>
+              <Text style={styles.accountTypeText}>{profileExperienceLabel}</Text>
             </View>
           ) : null}
           <Pressable disabled style={styles.editProfileButton}>
@@ -268,11 +277,45 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="person-circle-outline"
             label="Account Type"
-            value={loadingUser ? undefined : accountTypeLabel ?? 'Not set'}
+            value={loadingUser ? undefined : accountExperienceLabel}
+            showChevron
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/account-type');
+            }}
             styles={styles}
             theme={theme}
-            disabled
           />
+          {verificationStatusLabel ? (
+            <>
+              <GroupDivider styles={styles} />
+              <SettingsRow
+                icon="shield-checkmark-outline"
+                label="Verification"
+                value={verificationStatusLabel}
+                styles={styles}
+                theme={theme}
+                disabled
+              />
+            </>
+          ) : null}
+          {canAccessBusinessDashboard ? (
+            <>
+              <GroupDivider styles={styles} />
+              <SettingsRow
+                icon="swap-horizontal-outline"
+                label="Current Mode"
+                value={currentModeLabel}
+                showChevron
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push('/current-mode');
+                }}
+                styles={styles}
+                theme={theme}
+              />
+            </>
+          ) : null}
           <GroupDivider styles={styles} />
           <SettingsRow
             icon="log-out-outline"

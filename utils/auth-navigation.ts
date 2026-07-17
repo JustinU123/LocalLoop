@@ -15,7 +15,7 @@ export async function routeAfterAuthentication(user: User | null) {
 
   const accountType = getAccountTypeFromMetadata(user?.user_metadata);
 
-  if (accountType === 'consumer') {
+  if (accountType === 'consumer' || accountType === 'explorer') {
     router.replace('/onboarding/consumer');
     return;
   }
@@ -29,5 +29,7 @@ export async function routeAfterAuthentication(user: User | null) {
 }
 
 export function getOnboardingRouteForAccountType(accountType: AccountType) {
-  return accountType === 'consumer' ? '/onboarding/consumer' : '/onboarding/business';
+  return accountType === 'consumer' || accountType === 'explorer'
+    ? '/onboarding/consumer'
+    : '/onboarding/business';
 }

@@ -4,7 +4,10 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { getAccountTypeFromMetadata } from '@/utils/account-type';
+import { loadActiveAppMode } from '@/utils/app-mode-storage';
+import { canAccessBusinessDashboard } from '@/utils/business-dashboard';
 import { getCurrentSession } from '@/utils/auth';
+import { loadVerificationStatus } from '@/utils/account-mode-storage';
 import { isOnboardingComplete } from '@/utils/onboarding-storage';
 
 export default function Index() {
@@ -25,6 +28,18 @@ export default function Index() {
         if (!mounted) return;
 
         if (session && onboardingComplete) {
+          const accountType = getAccountTypeFromMetadata(session.user.user_metadata);
+          const verificationStatus = await loadVerificationStatus(session.user.id);
+          const activeAppMode = await loadActiveAppMode(session.user.id);
+
+          if (
+            canAccessBusinessDashboard(accountType, verificationStatus) &&
+            activeAppMode === 'business'
+          ) {
+            setDestination('/(business-tabs)');
+            return;
+          }
+
           setDestination('/(tabs)');
           return;
         }
@@ -32,7 +47,7 @@ export default function Index() {
         if (session && !onboardingComplete) {
           const accountType = getAccountTypeFromMetadata(session.user.user_metadata);
 
-          if (accountType === 'consumer') {
+          if (accountType === 'consumer' || accountType === 'explorer') {
             setDestination('/onboarding/consumer');
             return;
           }

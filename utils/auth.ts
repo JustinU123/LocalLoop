@@ -61,11 +61,11 @@ export function getDisplayNameFromUser(user: User): string {
 }
 
 export function getAccountTypeLabel(accountType: AccountType | null): string | null {
-  if (accountType === 'consumer') {
-    return 'Consumer';
+  if (accountType === 'explorer' || accountType === 'consumer') {
+    return 'Local Explorer';
   }
   if (accountType === 'business') {
-    return 'Business';
+    return 'Business Owner';
   }
   return null;
 }

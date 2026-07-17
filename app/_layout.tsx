@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
+import { AccountModeProvider } from '@/contexts/account-mode-context';
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
 import { NotificationsProvider } from '@/contexts/notifications-context';
 import { LocationSettingsProvider } from '@/contexts/location-settings-context';
@@ -64,7 +65,13 @@ function RootNavigation() {
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(business-tabs)" />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="current-mode" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="create-option" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="account-type" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-verification" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-verification-pending" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="location" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="help-support" options={{ animation: 'slide_from_right' }} />
@@ -87,9 +94,11 @@ export default function RootLayout() {
     <AppThemeProvider>
       <SavedItemsProvider>
         <LocationSettingsProvider>
-          <NotificationsProvider>
-            <RootNavigation />
-          </NotificationsProvider>
+          <AccountModeProvider>
+            <NotificationsProvider>
+              <RootNavigation />
+            </NotificationsProvider>
+          </AccountModeProvider>
         </LocationSettingsProvider>
       </SavedItemsProvider>
     </AppThemeProvider>
