@@ -1,3 +1,5 @@
+import { PROMOTION_BUSINESSES } from '@/data/promotion-businesses';
+
 export type BusinessVideo = {
   id: string;
   thumbnail: string;
@@ -26,6 +28,21 @@ export type BusinessReview = {
   text: string;
 };
 
+export type BusinessPost = {
+  id: string;
+  image: string;
+  caption: string;
+  postedAt: string;
+};
+
+export type BusinessPromotionItem = {
+  id: string;
+  title: string;
+  description: string;
+  expiresLabel: string;
+  image: string;
+};
+
 export type Business = {
   id: string;
   name: string;
@@ -33,6 +50,7 @@ export type Business = {
   distance: string;
   rating: number;
   reviewCount: number;
+  followerCount: number;
   latitude: number;
   longitude: number;
   image: string;
@@ -49,6 +67,8 @@ export type Business = {
   hiddenGem?: boolean;
   photos: string[];
   videos: BusinessVideo[];
+  posts: BusinessPost[];
+  promotions: BusinessPromotionItem[];
   menu: MenuSection[];
   reviews: BusinessReview[];
 };
@@ -186,7 +206,40 @@ export function getAppleMapsDirectionsUrl(latitude: number, longitude: number): 
   return `maps://?daddr=${latitude},${longitude}`;
 }
 
-export const BUSINESSES: Business[] = [
+type BusinessSeed = Omit<Business, 'followerCount' | 'posts' | 'promotions'> &
+  Partial<Pick<Business, 'followerCount' | 'posts' | 'promotions'>>;
+
+function enrichBusinessProfile(business: BusinessSeed): Business {
+  const posts =
+    business.posts ??
+    business.photos.slice(0, 3).map((uri, index) => ({
+      id: `${business.id}-post-${index + 1}`,
+      image: uri,
+      caption: `Fresh updates from ${business.name}`,
+      postedAt: `${index + 1}d ago`,
+    }));
+
+  const promotions =
+    business.promotions ??
+    business.menu.flatMap((section, sectionIndex) =>
+      section.items.slice(0, 2).map((item, itemIndex) => ({
+        id: `${business.id}-promo-${sectionIndex}-${itemIndex}`,
+        title: item.name,
+        description: item.description,
+        expiresLabel: 'Ongoing',
+        image: business.image,
+      })),
+    );
+
+  return {
+    ...business,
+    followerCount: business.followerCount ?? Math.max(120, Math.round(business.reviewCount * 0.35)),
+    posts,
+    promotions,
+  };
+}
+
+const RAW_BUSINESSES: BusinessSeed[] = [
   {
     id: 'intelligentsia-silver-lake',
     name: 'Intelligentsia Coffee',
@@ -361,6 +414,11 @@ export const BUSINESSES: Business[] = [
   },
 ];
 
+export const BUSINESSES: Business[] = RAW_BUSINESSES.map(enrichBusinessProfile);
+
 export function getBusinessById(id: string): Business | undefined {
-  return BUSINESSES.find((business) => business.id === id);
+  return (
+    BUSINESSES.find((business) => business.id === id) ??
+    PROMOTION_BUSINESSES.find((business) => business.id === id)
+  );
 }

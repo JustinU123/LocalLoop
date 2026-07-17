@@ -22,6 +22,7 @@ import {
   type RadiusOption,
 } from '@/data/promotions';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { openBusinessProfile } from '@/utils/open-business-profile';
 
 type PromotionsSegment = 'following' | 'nearby';
 
@@ -57,8 +58,8 @@ export default function PromotionsScreen() {
     });
   }, []);
 
-  const handleViewBusiness = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleViewBusiness = useCallback((businessId: string) => {
+    openBusinessProfile(businessId);
   }, []);
 
   const renderPromotion: ListRenderItem<Promotion> = useCallback(
@@ -67,7 +68,7 @@ export default function PromotionsScreen() {
         promotion={item}
         saved={savedIds.has(item.id)}
         onToggleSave={() => toggleSave(item.id)}
-        onViewBusiness={handleViewBusiness}
+        onViewBusiness={() => handleViewBusiness(item.businessId)}
       />
     ),
     [handleViewBusiness, savedIds, toggleSave],

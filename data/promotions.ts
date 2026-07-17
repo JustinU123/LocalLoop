@@ -1,5 +1,6 @@
 export type Promotion = {
   id: string;
+  businessId: string;
   businessName: string;
   businessLogo: string;
   promotionImage: string;
@@ -15,6 +16,7 @@ export type Promotion = {
 export const FOLLOWING_PROMOTIONS: Promotion[] = [
   {
     id: 'promo-following-1',
+    businessId: 'beanie-coffee-co',
     businessName: 'Beanie Coffee Co.',
     businessLogo:
       'https://images.unsplash.com/photo-1511920170033-f8396924c10b?w=200&q=80&auto=format&fit=crop',
@@ -30,6 +32,7 @@ export const FOLLOWING_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-following-2',
+    businessId: 'eastside-vintage',
     businessName: 'Eastside Vintage',
     businessLogo:
       'https://images.unsplash.com/photo-1441986300917-64676bd846d1?w=200&q=80&auto=format&fit=crop',
@@ -44,6 +47,7 @@ export const FOLLOWING_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-following-3',
+    businessId: 'casa-luna-tacos',
     businessName: 'Casa Luna Tacos',
     businessLogo:
       'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=200&q=80&auto=format&fit=crop',
@@ -61,6 +65,7 @@ export const FOLLOWING_PROMOTIONS: Promotion[] = [
 export const NEARBY_PROMOTIONS: Promotion[] = [
   {
     id: 'promo-nearby-1',
+    businessId: 'harbor-pizza-co',
     businessName: 'Harbor Pizza Co.',
     businessLogo:
       'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&q=80&auto=format&fit=crop',
@@ -75,6 +80,7 @@ export const NEARBY_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-nearby-2',
+    businessId: 'sunny-side-bakery',
     businessName: 'Sunny Side Bakery',
     businessLogo:
       'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&q=80&auto=format&fit=crop',
@@ -89,6 +95,7 @@ export const NEARBY_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-nearby-3',
+    businessId: 'river-run-books',
     businessName: 'River Run Books',
     businessLogo:
       'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=200&q=80&auto=format&fit=crop',
@@ -102,6 +109,7 @@ export const NEARBY_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-nearby-4',
+    businessId: 'bloom-florist',
     businessName: 'Bloom Florist',
     businessLogo:
       'https://images.unsplash.com/photo-1487530811647-569962357165?w=200&q=80&auto=format&fit=crop',
@@ -117,6 +125,7 @@ export const NEARBY_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-nearby-5',
+    businessId: 'green-leaf-yoga',
     businessName: 'Green Leaf Yoga',
     businessLogo:
       'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=200&q=80&auto=format&fit=crop',
@@ -131,6 +140,7 @@ export const NEARBY_PROMOTIONS: Promotion[] = [
   },
   {
     id: 'promo-nearby-6',
+    businessId: 'mile-high-records',
     businessName: 'Mile High Records',
     businessLogo:
       'https://images.unsplash.com/photo-1619983081563-430f63602706?w=200&q=80&auto=format&fit=crop',

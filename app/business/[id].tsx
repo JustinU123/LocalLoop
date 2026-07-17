@@ -23,9 +23,9 @@ import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
   Business,
+  BusinessPromotionItem,
   BusinessReview,
   BusinessVideo,
-  MenuItem,
   getAppleMapsDirectionsUrl,
   getBusinessById,
 } from '@/data/businesses';
@@ -35,21 +35,29 @@ const VIDEO_HEIGHT = Math.min(420, SCREEN_HEIGHT * 0.5);
 const PHOTO_GAP = 10;
 const PHOTO_WIDTH = (SCREEN_WIDTH - 72 - PHOTO_GAP) / 2;
 
-type ProfileTab = 'videos' | 'photos' | 'menu' | 'reviews' | 'about';
+type ProfileTab = 'posts' | 'promotions' | 'reviews' | 'photos' | 'videos' | 'about';
 
 const TABS: { id: ProfileTab; label: string }[] = [
-  { id: 'videos', label: 'Videos' },
-  { id: 'photos', label: 'Photos' },
-  { id: 'menu', label: 'Menu' },
+  { id: 'posts', label: 'Posts' },
+  { id: 'promotions', label: 'Promotions' },
   { id: 'reviews', label: 'Reviews' },
+  { id: 'photos', label: 'Photos' },
+  { id: 'videos', label: 'Videos' },
   { id: 'about', label: 'About' },
 ];
+
+function formatFollowerCount(count: number): string {
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  return `${count}`;
+}
 
 type TabRow =
   | { key: string; kind: 'video-feed' }
   | { key: string; kind: 'photo'; uri: string; index: number }
-  | { key: string; kind: 'menu-section'; title: string }
-  | { key: string; kind: 'menu-item'; item: MenuItem }
+  | { key: string; kind: 'post'; postId: string; image: string; caption: string; postedAt: string }
+  | { key: string; kind: 'promotion'; promotion: BusinessPromotionItem }
   | { key: string; kind: 'review'; review: BusinessReview }
   | { key: string; kind: 'about' };
 
@@ -142,6 +150,21 @@ function VideoFeed({ videos }: { videos: BusinessVideo[] }) {
 
 function buildTabRows(tab: ProfileTab, business: Business): TabRow[] {
   switch (tab) {
+    case 'posts':
+      return business.posts.map((post) => ({
+        key: post.id,
+        kind: 'post' as const,
+        postId: post.id,
+        image: post.image,
+        caption: post.caption,
+        postedAt: post.postedAt,
+      }));
+    case 'promotions':
+      return business.promotions.map((promotion) => ({
+        key: promotion.id,
+        kind: 'promotion' as const,
+        promotion,
+      }));
     case 'videos':
       return [{ key: 'video-feed', kind: 'video-feed' }];
     case 'photos':
@@ -151,15 +174,6 @@ function buildTabRows(tab: ProfileTab, business: Business): TabRow[] {
         uri,
         index,
       }));
-    case 'menu':
-      return business.menu.flatMap((section) => [
-        { key: `section-${section.title}`, kind: 'menu-section' as const, title: section.title },
-        ...section.items.map((item) => ({
-          key: `item-${section.title}-${item.name}`,
-          kind: 'menu-item' as const,
-          item,
-        })),
-      ]);
     case 'reviews':
       return business.reviews.map((review) => ({
         key: review.id,
@@ -229,8 +243,14 @@ function ProfileHeader({
         <View style={styles.statsRow}>
           <Ionicons name="star" size={14} color={theme.star} />
           <Text style={styles.ratingText}>{business.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>({business.reviewCount})</Text>
+          <Text style={styles.reviewCount}>{business.reviewCount} reviews</Text>
           <Text style={styles.dot}>·</Text>
+          <Text style={styles.followerCount}>{formatFollowerCount(business.followerCount)} followers</Text>
+        </View>
+
+        <Text style={styles.bio}>{business.about}</Text>
+
+        <View style={styles.metaRow}>
           <Text style={styles.distanceText}>{business.distance}</Text>
           <Text style={styles.dot}>·</Text>
           <View style={[styles.statusPill, business.isOpen ? styles.openPill : styles.closedPill]}>
@@ -280,7 +300,10 @@ function ProfileHeader({
           <CompactActionButton icon="share-outline" label="Share" onPress={onShare} />
         </View>
 
-        <View style={styles.tabsRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsRow}>
           {TABS.map((tab) => {
             const selected = activeTab === tab.id;
             return (
@@ -292,7 +315,7 @@ function ProfileHeader({
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -304,7 +327,7 @@ export default function BusinessProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const business = useMemo(() => getBusinessById(id ?? ''), [id]);
-  const [activeTab, setActiveTab] = useState<ProfileTab>('videos');
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [following, setFollowing] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -336,6 +359,39 @@ export default function BusinessProfileScreen() {
       );
     }
 
+    if (item.kind === 'post') {
+      return (
+        <Animated.View entering={FadeInDown.duration(320)} style={styles.postCard}>
+          <Image source={{ uri: item.image }} style={styles.postImage} contentFit="cover" transition={250} />
+          <View style={styles.postBody}>
+            <Text style={styles.postCaption}>{item.caption}</Text>
+            <Text style={styles.postMeta}>{item.postedAt}</Text>
+          </View>
+        </Animated.View>
+      );
+    }
+
+    if (item.kind === 'promotion') {
+      return (
+        <Animated.View entering={FadeInDown.duration(320)} style={styles.profilePromotionCard}>
+          <View style={styles.profilePromotionBadge}>
+            <Text style={styles.profilePromotionBadgeText}>PROMOTION</Text>
+          </View>
+          <Image
+            source={{ uri: item.promotion.image }}
+            style={styles.profilePromotionImage}
+            contentFit="cover"
+            transition={250}
+          />
+          <View style={styles.profilePromotionBody}>
+            <Text style={styles.profilePromotionTitle}>{item.promotion.title}</Text>
+            <Text style={styles.profilePromotionDescription}>{item.promotion.description}</Text>
+            <Text style={styles.profilePromotionExpiry}>{item.promotion.expiresLabel}</Text>
+          </View>
+        </Animated.View>
+      );
+    }
+
     if (item.kind === 'photo') {
       return (
         <Animated.View
@@ -346,26 +402,6 @@ export default function BusinessProfileScreen() {
           ]}>
           <Image source={{ uri: item.uri }} style={styles.photoImage} contentFit="cover" transition={250} />
         </Animated.View>
-      );
-    }
-
-    if (item.kind === 'menu-section') {
-      return (
-        <View style={styles.menuSectionHeader}>
-          <Text style={styles.menuSectionTitle}>{item.title}</Text>
-        </View>
-      );
-    }
-
-    if (item.kind === 'menu-item') {
-      return (
-        <View style={styles.menuItem}>
-          <View style={styles.menuItemHeader}>
-            <Text style={styles.menuItemName}>{item.item.name}</Text>
-            <Text style={styles.menuItemPrice}>{item.item.price}</Text>
-          </View>
-          <Text style={styles.menuItemDescription}>{item.item.description}</Text>
-        </View>
       );
     }
 
@@ -574,6 +610,27 @@ function createStyles(theme: AppThemeTokens) {
     color: theme.textSecondary,
     fontSize: 13,
   },
+  followerCount: {
+    color: theme.textSecondary,
+    fontSize: 13,
+  },
+  bio: {
+    color: theme.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginTop: 10,
+    paddingHorizontal: 8,
+    fontFamily: BrandFonts.regular,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 8,
+  },
   dot: {
     color: theme.textMuted,
     fontSize: 14,
@@ -698,10 +755,10 @@ function createStyles(theme: AppThemeTokens) {
   },
   tabsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
     paddingTop: 14,
     paddingBottom: 12,
+    paddingRight: 8,
   },
   tabChip: {
     paddingHorizontal: 14,
@@ -722,6 +779,85 @@ function createStyles(theme: AppThemeTokens) {
   },
   tabChipTextActive: {
     color: theme.emerald,
+  },
+  postCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.border,
+    overflow: 'hidden',
+    marginBottom: 12,
+    ...theme.shadowCard,
+  },
+  postImage: {
+    width: '100%',
+    height: 220,
+  },
+  postBody: {
+    padding: 16,
+    gap: 6,
+  },
+  postCaption: {
+    color: theme.text,
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: BrandFonts.medium,
+  },
+  postMeta: {
+    color: theme.textSecondary,
+    fontSize: 13,
+    fontFamily: BrandFonts.regular,
+  },
+  profilePromotionCard: {
+    backgroundColor: theme.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.border,
+    overflow: 'hidden',
+    marginBottom: 12,
+    ...theme.shadowCard,
+  },
+  profilePromotionBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    zIndex: 1,
+    backgroundColor: theme.coral,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  profilePromotionBadgeText: {
+    color: theme.onCoral,
+    fontSize: 11,
+    fontFamily: BrandFonts.bold,
+    letterSpacing: 0.6,
+  },
+  profilePromotionImage: {
+    width: '100%',
+    height: 180,
+  },
+  profilePromotionBody: {
+    padding: 16,
+    gap: 6,
+  },
+  profilePromotionTitle: {
+    color: theme.text,
+    fontSize: 18,
+    fontFamily: BrandFonts.bold,
+    letterSpacing: -0.3,
+  },
+  profilePromotionDescription: {
+    color: theme.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: BrandFonts.regular,
+  },
+  profilePromotionExpiry: {
+    color: theme.coral,
+    fontSize: 13,
+    fontFamily: BrandFonts.semiBold,
+    marginTop: 2,
   },
   tabContentItem: {
     backgroundColor: theme.surface,
