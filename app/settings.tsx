@@ -179,6 +179,7 @@ export default function SettingsScreen() {
     currentModeLabel,
     canAccessBusinessDashboard,
     refreshAccountMode,
+    isReady: accountModeReady,
   } = useAccountMode();
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
@@ -286,7 +287,7 @@ export default function SettingsScreen() {
             styles={styles}
             theme={theme}
           />
-          {verificationStatusLabel ? (
+          {accountModeReady && verificationStatusLabel ? (
             <>
               <GroupDivider styles={styles} />
               <SettingsRow

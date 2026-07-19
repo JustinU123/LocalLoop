@@ -17,5 +17,7 @@ export const LIBRARY_DENIED_ALERT = {
 export const PHOTO_EDITOR_NEXT_MESSAGE = 'Photo editor will be connected next.';
 export const VIDEO_EDITOR_NEXT_MESSAGE = 'Video editor will be connected next.';
 
+export const PHOTO_POST_CAPTION_MAX_LENGTH = 500;
+
 export const IMAGE_PICKER_QUALITY = 0.8;
 export const VIDEO_MAX_DURATION_SECONDS = 60;

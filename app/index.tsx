@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { getCurrentUserBusiness, resolveVerificationStatus } from '@/services/businesses';
 import { getAccountTypeFromMetadata } from '@/utils/account-type';
 import { loadActiveAppMode } from '@/utils/app-mode-storage';
-import { canAccessBusinessDashboard } from '@/utils/business-dashboard';
-import { getCurrentSession } from '@/utils/auth';
 import { loadVerificationStatus } from '@/utils/account-mode-storage';
+import { canAccessBusinessDashboardWithBusinessRow } from '@/utils/business-dashboard';
+import { getCurrentSession } from '@/utils/auth';
 import { isOnboardingComplete } from '@/utils/onboarding-storage';
 
 export default function Index() {
@@ -29,11 +30,13 @@ export default function Index() {
 
         if (session && onboardingComplete) {
           const accountType = getAccountTypeFromMetadata(session.user.user_metadata);
-          const verificationStatus = await loadVerificationStatus(session.user.id);
+          const storedVerificationStatus = await loadVerificationStatus(session.user.id);
+          const { business } = await getCurrentUserBusiness();
+          const verificationStatus = resolveVerificationStatus(business, storedVerificationStatus);
           const activeAppMode = await loadActiveAppMode(session.user.id);
 
           if (
-            canAccessBusinessDashboard(accountType, verificationStatus) &&
+            canAccessBusinessDashboardWithBusinessRow(business, accountType, verificationStatus) &&
             activeAppMode === 'business'
           ) {
             setDestination('/(business-tabs)');

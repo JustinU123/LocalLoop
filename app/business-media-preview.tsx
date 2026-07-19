@@ -1,15 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountScreenHeader } from '@/components/account/account-screen-header';
 import { PrimaryButton } from '@/components/account/primary-button';
+import { FormFieldWithCounter } from '@/components/business/form-field-with-counter';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import {
-  PHOTO_EDITOR_NEXT_MESSAGE,
+  PHOTO_POST_CAPTION_MAX_LENGTH,
   VIDEO_EDITOR_NEXT_MESSAGE,
 } from '@/constants/business-media';
 import {
@@ -17,6 +19,7 @@ import {
   useVerifiedBusinessCreateGuard,
 } from '@/hooks/use-verified-business-create-guard';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { publishPhotoPost } from '@/services/posts';
 import {
   clearBusinessMediaDraft,
   getBusinessMediaDraft,
@@ -39,6 +42,9 @@ export default function BusinessMediaPreviewScreen() {
   const canCreate = useCanCreateBusinessContent();
   const styles = useThemedStyles(createStyles);
   const [draft, setDraft] = useState<BusinessMediaDraft | null>(null);
+  const [caption, setCaption] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const publishInFlightRef = useRef(false);
 
   useEffect(() => {
     const nextDraft = getBusinessMediaDraft();
@@ -51,8 +57,7 @@ export default function BusinessMediaPreviewScreen() {
 
   const title = draft?.type === 'video' ? 'Video Preview' : 'Photo Preview';
   const changeLabel = draft?.type === 'video' ? 'Record Again' : 'Change Photo';
-  const continueMessage =
-    draft?.type === 'video' ? VIDEO_EDITOR_NEXT_MESSAGE : PHOTO_EDITOR_NEXT_MESSAGE;
+  const continueMessage = VIDEO_EDITOR_NEXT_MESSAGE;
 
   const summary = useMemo(() => {
     if (!draft) {
@@ -73,6 +78,48 @@ export default function BusinessMediaPreviewScreen() {
 
   const handleContinue = () => {
     Alert.alert('Coming next', continueMessage);
+  };
+
+  const handlePublish = async () => {
+    if (!draft || draft.type !== 'photo' || publishInFlightRef.current || isPublishing) {
+      return;
+    }
+
+    if (!draft.uri?.trim()) {
+      Alert.alert('Photo required', 'Select a photo before publishing.');
+      return;
+    }
+
+    publishInFlightRef.current = true;
+    setIsPublishing(true);
+
+    try {
+      const result = await publishPhotoPost({
+        imageUri: draft.uri,
+        fileName: draft.fileName,
+        caption,
+      });
+
+      if (!result.ok) {
+        Alert.alert('Unable to publish', result.message);
+        return;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      clearBusinessMediaDraft();
+      setCaption('');
+      setDraft(null);
+
+      Alert.alert('Post published', 'Your photo post is live on your business profile.', [
+        {
+          text: 'View Profile',
+          onPress: () => router.replace('/(business-tabs)/business'),
+        },
+      ]);
+    } finally {
+      publishInFlightRef.current = false;
+      setIsPublishing(false);
+    }
   };
 
   const handleChange = () => {
@@ -115,16 +162,38 @@ export default function BusinessMediaPreviewScreen() {
           )}
         </View>
 
-        {draft.type === 'photo' && summary ? (
-          <Text style={styles.meta}>{summary}</Text>
+        {draft.type === 'photo' && summary ? <Text style={styles.meta}>{summary}</Text> : null}
+
+        {draft.type === 'photo' ? (
+          <FormFieldWithCounter
+            label="Caption"
+            value={caption}
+            onChangeText={setCaption}
+            maxLength={PHOTO_POST_CAPTION_MAX_LENGTH}
+            placeholder="Add an optional caption for your photo post."
+            multiline
+            editable={!isPublishing}
+            helperText="Caption is optional, but your photo is required to publish."
+          />
         ) : null}
 
         <View style={styles.actions}>
-          <PrimaryButton label="Continue" onPress={handleContinue} />
-          <Pressable onPress={handleChange} style={styles.secondaryButton}>
+          {draft.type === 'photo' ? (
+            <PrimaryButton
+              label="Publish"
+              onPress={() => {
+                void handlePublish();
+              }}
+              loading={isPublishing}
+              disabled={isPublishing || !draft.uri}
+            />
+          ) : (
+            <PrimaryButton label="Continue" onPress={handleContinue} />
+          )}
+          <Pressable onPress={handleChange} disabled={isPublishing} style={styles.secondaryButton}>
             <Text style={styles.secondaryButtonText}>{changeLabel}</Text>
           </Pressable>
-          <Pressable onPress={handleCancel} style={styles.cancelButton}>
+          <Pressable onPress={handleCancel} disabled={isPublishing} style={styles.cancelButton}>
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
         </View>

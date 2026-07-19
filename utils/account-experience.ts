@@ -32,14 +32,16 @@ export function getAccountExperienceLabel(
 
 export function getVerificationStatusLabel(status: VerificationStatus): string | null {
   switch (status) {
+    case 'not_submitted':
+      return 'Apply for Business';
     case 'pending':
-      return 'Pending Review';
+      return 'Application Pending';
     case 'verified':
-      return 'Verified';
+      return 'Verified Business';
     case 'needs_information':
-      return 'Needs Information';
+      return 'More Information Required';
     case 'rejected':
-      return 'Rejected';
+      return 'Application Not Approved';
     default:
       return null;
   }

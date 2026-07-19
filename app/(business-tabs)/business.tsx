@@ -1,7 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/account/primary-button';
@@ -10,17 +20,51 @@ import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/busine
 import { PLACEHOLDER_BUSINESS_PROFILE } from '@/constants/business-dashboard';
 import { useAccountMode } from '@/contexts/account-mode-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { formatPostCreatedAt, getBusinessPosts } from '@/services/posts';
+import type { BusinessPost } from '@/types/supabase-post';
 
 const PROFILE_TABS = ['Posts', 'Videos', 'Photos', 'Promotions', 'Reviews', 'About'] as const;
 
 export default function BusinessProfileScreen() {
   const styles = useThemedStyles(createStyles);
-  const { businessApplication, switchToExplorerMode } = useAccountMode();
+  const { businessApplication, businessRecord, switchToExplorerMode } = useAccountMode();
   const [activeTab, setActiveTab] = useState<(typeof PROFILE_TABS)[number]>('Posts');
+  const [posts, setPosts] = useState<BusinessPost[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsLoaded, setPostsLoaded] = useState(false);
   const profile = PLACEHOLDER_BUSINESS_PROFILE;
   const businessName = businessApplication?.businessName?.trim() || profile.name;
   const businessCategory = businessApplication?.category?.trim() || profile.category;
   const biography = businessApplication?.description?.trim() || profile.biography;
+  const postCount = postsLoaded ? posts.length : profile.postCount;
+
+  const loadPosts = useCallback(async () => {
+    if (!businessRecord?.id) {
+      setPosts([]);
+      setPostsLoaded(true);
+      return;
+    }
+
+    setPostsLoading(true);
+    const result = await getBusinessPosts(businessRecord.id);
+    setPostsLoading(false);
+    setPostsLoaded(true);
+
+    if (result.ok) {
+      setPosts(result.posts);
+      return;
+    }
+
+    if (__DEV__) {
+      console.error('[business-profile:loadPosts]', result.message);
+    }
+  }, [businessRecord?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPosts();
+    }, [loadPosts]),
+  );
 
   const handlePlaceholderAction = (label: string) => {
     Alert.alert('Coming soon', `${label} will be connected in a future business tools update.`);
@@ -58,7 +102,7 @@ export default function BusinessProfileScreen() {
               <Text style={styles.statLabel}>Following</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile.postCount}</Text>
+              <Text style={styles.statValue}>{postCount}</Text>
               <Text style={styles.statLabel}>Posts</Text>
             </View>
           </View>
@@ -83,9 +127,38 @@ export default function BusinessProfileScreen() {
 
         <View style={styles.tabContent}>
           <Text style={styles.tabContentTitle}>{activeTab}</Text>
-          <Text style={styles.tabContentBody}>
-            Placeholder {activeTab.toLowerCase()} content for your public business profile preview.
-          </Text>
+          {activeTab === 'Posts' ? (
+            postsLoading && !postsLoaded ? (
+              <View style={styles.postsLoadingRow}>
+                <ActivityIndicator color={styles.postsLoadingIndicator.color} />
+                <Text style={styles.tabContentBody}>Loading your posts…</Text>
+              </View>
+            ) : posts.length > 0 ? (
+              <View style={styles.postsList}>
+                {posts.map((post) => (
+                  <View key={post.id} style={styles.postCard}>
+                    <Image
+                      source={{ uri: post.imageUrl }}
+                      style={styles.postImage}
+                      contentFit="cover"
+                    />
+                    <View style={styles.postBody}>
+                      {post.caption ? <Text style={styles.postCaption}>{post.caption}</Text> : null}
+                      <Text style={styles.postMeta}>{formatPostCreatedAt(post.createdAt)}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.tabContentBody}>
+                No photo posts yet. Create your first post from the Create tab.
+              </Text>
+            )
+          ) : (
+            <Text style={styles.tabContentBody}>
+              Placeholder {activeTab.toLowerCase()} content for your public business profile preview.
+            </Text>
+          )}
         </View>
 
         <View style={styles.managementCard}>
@@ -254,6 +327,44 @@ function createStyles(theme: AppThemeTokens) {
       fontSize: 14,
       lineHeight: 20,
       fontFamily: BrandFonts.regular,
+    },
+    postsLoadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    postsLoadingIndicator: {
+      color: theme.emerald,
+    },
+    postsList: {
+      gap: 14,
+    },
+    postCard: {
+      borderRadius: BrandRadius.md,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.surfaceElevated,
+    },
+    postImage: {
+      width: '100%',
+      aspectRatio: 4 / 5,
+      backgroundColor: theme.surfaceElevated,
+    },
+    postBody: {
+      padding: 12,
+      gap: 6,
+    },
+    postCaption: {
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: BrandFonts.regular,
+    },
+    postMeta: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      fontFamily: BrandFonts.medium,
     },
     managementCard: {
       backgroundColor: theme.surface,

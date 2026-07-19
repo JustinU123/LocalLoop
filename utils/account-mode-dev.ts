@@ -96,7 +96,7 @@ export function getVerificationStatusHeadline(status: VerificationStatus): {
       return {
         badge: 'Pending Review',
         title: 'Business Verification Pending',
-        body: 'We received your request. Business tools will become available after your business is reviewed.',
+        body: 'Your business application has been submitted for review. Business tools will become available after your business is reviewed.',
       };
   }
 }

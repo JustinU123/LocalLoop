@@ -10,7 +10,16 @@ import {
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 
+import {
+  businessRowToApplication,
+  getCurrentUserBusiness,
+  getCurrentUserProfile,
+  resolveVerificationStatus,
+  submitBusinessApplication as submitBusinessApplicationToSupabase,
+  UNSUPPORTED_APPLICATION_FIELDS,
+} from '@/services/businesses';
 import type { AccountMode, BusinessApplication, VerificationStatus } from '@/types/account-mode';
+import type { BusinessRow } from '@/types/supabase-business';
 import type { ActiveAppMode } from '@/types/app-navigation-mode';
 import { ACTIVE_APP_MODE_LABELS } from '@/types/app-navigation-mode';
 import {
@@ -26,7 +35,7 @@ import {
   saveVerificationStatus,
 } from '@/utils/account-mode-storage';
 import { loadActiveAppMode, saveActiveAppMode } from '@/utils/app-mode-storage';
-import { canAccessBusinessDashboard } from '@/utils/business-dashboard';
+import { canAccessBusinessDashboardWithBusinessRow } from '@/utils/business-dashboard';
 import type { AccountType } from '@/utils/account-type';
 import { getAccountTypeFromMetadata } from '@/utils/account-type';
 import { getCurrentSession, updateUserAccountType } from '@/utils/auth';
@@ -40,6 +49,7 @@ type AccountModeContextValue = {
   accountExperienceLabel: string;
   verificationStatusLabel: string | null;
   businessApplication: BusinessApplication | null;
+  businessRecord: BusinessRow | null;
   activeAppMode: ActiveAppMode;
   currentModeLabel: string;
   canAccessBusinessDashboard: boolean;
@@ -54,15 +64,34 @@ type AccountModeContextValue = {
 
 const AccountModeContext = createContext<AccountModeContextValue | null>(null);
 
+function resolveAccountType(
+  profileAccountType: string | null | undefined,
+  metadataAccountType: AccountType | null,
+  hasBusinessRecord: boolean,
+): AccountType | null {
+  if (profileAccountType === 'business' || profileAccountType === 'explorer') {
+    return profileAccountType;
+  }
+
+  if (metadataAccountType) {
+    return metadataAccountType;
+  }
+
+  return hasBusinessRecord ? 'business' : metadataAccountType;
+}
+
 export function AccountModeProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<AccountType | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('not_submitted');
   const [businessApplication, setBusinessApplication] = useState<BusinessApplication | null>(null);
+  const [businessRecord, setBusinessRecord] = useState<BusinessRow | null>(null);
   const [activeAppMode, setActiveAppMode] = useState<ActiveAppMode>('explorer');
 
   const refreshAccountMode = useCallback(async () => {
+    setIsReady(false);
+
     try {
       const session = await getCurrentSession();
       const nextUserId = session?.user?.id ?? null;
@@ -71,25 +100,55 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
       const metadataType = getAccountTypeFromMetadata(
         session?.user?.user_metadata as Record<string, unknown> | undefined,
       );
-      setAccountType(metadataType);
 
       if (!nextUserId) {
+        setAccountType(null);
         setVerificationStatus('not_submitted');
         setBusinessApplication(null);
+        setBusinessRecord(null);
         setActiveAppMode('explorer');
         return;
       }
 
-      const [storedStatus, storedApplication, storedAppMode] = await Promise.all([
-        loadVerificationStatus(nextUserId),
-        loadBusinessApplication(nextUserId),
-        loadActiveAppMode(nextUserId),
-      ]);
+      const [supabaseResult, storedStatus, storedApplication, storedAppMode, profile] =
+        await Promise.all([
+          getCurrentUserBusiness(),
+          loadVerificationStatus(nextUserId),
+          loadBusinessApplication(nextUserId),
+          loadActiveAppMode(nextUserId),
+          getCurrentUserProfile(nextUserId),
+        ]);
 
-      setVerificationStatus(storedStatus);
-      setBusinessApplication(storedApplication);
+      const nextBusinessRecord = supabaseResult.business;
+      setBusinessRecord(nextBusinessRecord);
 
-      const canUseBusiness = canAccessBusinessDashboard(metadataType, storedStatus);
+      const nextVerificationStatus = resolveVerificationStatus(nextBusinessRecord, storedStatus);
+      setVerificationStatus(nextVerificationStatus);
+
+      const nextAccountType = resolveAccountType(
+        profile?.account_type,
+        metadataType,
+        Boolean(nextBusinessRecord),
+      );
+      setAccountType(nextAccountType);
+
+      const nextApplication = nextBusinessRecord
+        ? businessRowToApplication(nextBusinessRecord)
+        : storedApplication;
+      setBusinessApplication(nextApplication);
+
+      if (nextBusinessRecord) {
+        await saveVerificationStatus(nextUserId, nextVerificationStatus);
+        if (nextApplication) {
+          await saveBusinessApplication(nextUserId, nextApplication);
+        }
+      }
+
+      const canUseBusiness = canAccessBusinessDashboardWithBusinessRow(
+        nextBusinessRecord,
+        nextAccountType,
+        nextVerificationStatus,
+      );
       setActiveAppMode(canUseBusiness && storedAppMode === 'business' ? 'business' : 'explorer');
     } finally {
       setIsReady(true);
@@ -101,8 +160,13 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
   }, [refreshAccountMode]);
 
   const canUseBusinessDashboard = useMemo(
-    () => canAccessBusinessDashboard(accountType, verificationStatus),
-    [accountType, verificationStatus],
+    () =>
+      canAccessBusinessDashboardWithBusinessRow(
+        businessRecord,
+        accountType,
+        verificationStatus,
+      ),
+    [businessRecord, accountType, verificationStatus],
   );
 
   const persistActiveAppMode = useCallback(
@@ -142,8 +206,29 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
       const session = await getCurrentSession();
       const currentUserId = session?.user?.id;
       if (!currentUserId) {
-        Alert.alert('Sign in required', 'Please sign in to submit your business application.');
+        Alert.alert(
+          'Sign in required',
+          'Please sign in again to submit your business application.',
+        );
         return false;
+      }
+
+      const result = await submitBusinessApplicationToSupabase(application);
+      if (!result.ok) {
+        Alert.alert('Unable to submit', result.message);
+        return false;
+      }
+
+      if (result.status === 'already_pending') {
+        await refreshAccountMode();
+        router.replace('/business-verification-pending');
+        return true;
+      }
+
+      if (result.status === 'already_verified') {
+        await refreshAccountMode();
+        router.replace('/business-verification-pending');
+        return true;
       }
 
       const { error } = await updateUserAccountType('business');
@@ -159,8 +244,15 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
 
       await saveBusinessApplication(currentUserId, payload);
       await saveVerificationStatus(currentUserId, 'pending');
-
       await refreshAccountMode();
+
+      if (__DEV__) {
+        console.info(
+          '[business-application] Fields not stored in Supabase yet:',
+          UNSUPPORTED_APPLICATION_FIELDS.join(', '),
+        );
+      }
+
       return true;
     },
     [refreshAccountMode],
@@ -219,6 +311,7 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
       accountExperienceLabel,
       verificationStatusLabel,
       businessApplication,
+      businessRecord,
       activeAppMode,
       currentModeLabel,
       canAccessBusinessDashboard: canUseBusinessDashboard,
@@ -237,6 +330,7 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
       accountExperienceLabel,
       verificationStatusLabel,
       businessApplication,
+      businessRecord,
       activeAppMode,
       currentModeLabel,
       canUseBusinessDashboard,

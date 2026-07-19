@@ -32,7 +32,7 @@ const BUSINESS_FEATURES = [
 
 export default function AccountTypeSelectionScreen() {
   const styles = useThemedStyles(createStyles);
-  const { accountType, verificationStatus, setLocalExplorerExperience } = useAccountMode();
+  const { accountType, verificationStatus, setLocalExplorerExperience, isReady } = useAccountMode();
   const [selected, setSelected] = useState<ExperienceChoice>(() => {
     if (accountType === 'business' || verificationStatus !== 'not_submitted') {
       return 'business';
@@ -59,6 +59,10 @@ export default function AccountTypeSelectionScreen() {
 
   const handleApplyBusiness = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (verificationStatus === 'pending' || verificationStatus === 'verified') {
+      router.push('/business-verification-pending');
+      return;
+    }
     router.push('/business-verification');
   };
 

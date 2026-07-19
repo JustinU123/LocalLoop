@@ -2,6 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -31,7 +32,8 @@ import type { VerificationMethod } from '@/types/account-mode';
 
 export default function BusinessVerificationScreen() {
   const styles = useThemedStyles(createStyles);
-  const { businessApplication, submitBusinessApplication } = useAccountMode();
+  const { businessApplication, submitBusinessApplication, verificationStatus, isReady } =
+    useAccountMode();
 
   const initialValues = useMemo(() => {
     if (!businessApplication) {
@@ -48,6 +50,16 @@ export default function BusinessVerificationScreen() {
   useEffect(() => {
     setForm(initialValues);
   }, [initialValues]);
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (verificationStatus === 'pending' || verificationStatus === 'verified') {
+      router.replace('/business-verification-pending');
+    }
+  }, [isReady, verificationStatus]);
 
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -70,6 +82,18 @@ export default function BusinessVerificationScreen() {
       setSubmitting(false);
     }
   };
+
+  if (!isReady) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <AccountScreenHeader title="Business Verification" />
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={styles.loadingIndicator.color} />
+          <Text style={styles.loadingText}>Loading your application status…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -297,6 +321,23 @@ function createStyles(theme: AppThemeTokens) {
       fontSize: 13,
       lineHeight: 19,
       fontFamily: BrandFonts.regular,
+    },
+    loadingState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      paddingHorizontal: 24,
+    },
+    loadingIndicator: {
+      color: theme.emerald,
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'center',
     },
   });
 }

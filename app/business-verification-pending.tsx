@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountScreenHeader } from '@/components/account/account-screen-header';
@@ -14,7 +14,8 @@ import { getVerificationStatusHeadline } from '@/utils/account-mode-dev';
 
 export default function BusinessVerificationPendingScreen() {
   const styles = useThemedStyles(createStyles);
-  const { verificationStatus, refreshAccountMode, switchToBusinessDashboard } = useAccountMode();
+  const { verificationStatus, refreshAccountMode, switchToBusinessDashboard, isReady } =
+    useAccountMode();
   const headline = getVerificationStatusHeadline(verificationStatus);
   const isVerified = verificationStatus === 'verified';
 
@@ -28,6 +29,18 @@ export default function BusinessVerificationPendingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     void switchToBusinessDashboard();
   };
+
+  if (!isReady) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <AccountScreenHeader title="Business Verification" />
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={styles.loadingIndicator.color} />
+          <Text style={styles.loadingText}>Loading your application status…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -147,6 +160,23 @@ function createStyles(theme: AppThemeTokens) {
     actions: {
       marginTop: 12,
       gap: 12,
+    },
+    loadingState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      paddingHorizontal: 24,
+    },
+    loadingIndicator: {
+      color: theme.emerald,
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'center',
     },
   });
 }
