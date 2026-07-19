@@ -1,10 +1,15 @@
-import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Alert } from 'react-native';
+import { router } from 'expo-router';
 
 import { useAccountMode } from '@/contexts/account-mode-context';
 
-export function useVerifiedBusinessCreateGuard() {
+type VerifiedBusinessCreateGuardOptions = {
+  blockedTitle?: string;
+  blockedMessage?: string;
+};
+
+export function useVerifiedBusinessCreateGuard(options?: VerifiedBusinessCreateGuardOptions) {
   const { isReady, canAccessBusinessDashboard, activeAppMode } = useAccountMode();
 
   useEffect(() => {
@@ -18,8 +23,8 @@ export function useVerifiedBusinessCreateGuard() {
     }
 
     Alert.alert(
-      'Verification required',
-      'Business verification is required to create content.',
+      options?.blockedTitle ?? 'Verification required',
+      options?.blockedMessage ?? 'Business verification is required to create content.',
       [
         {
           text: 'OK',
@@ -34,7 +39,37 @@ export function useVerifiedBusinessCreateGuard() {
       ],
       { cancelable: false },
     );
-  }, [isReady, canAccessBusinessDashboard, activeAppMode]);
+  }, [
+    isReady,
+    canAccessBusinessDashboard,
+    activeAppMode,
+    options?.blockedTitle,
+    options?.blockedMessage,
+  ]);
+}
+
+export function useVerifiedBusinessPromotionGuard() {
+  useVerifiedBusinessCreateGuard({
+    blockedMessage: 'Business verification is required to create promotions.',
+  });
+}
+
+export function useVerifiedBusinessEventGuard() {
+  useVerifiedBusinessCreateGuard({
+    blockedMessage: 'Business verification is required to create events.',
+  });
+}
+
+export function useVerifiedBusinessProductItemGuard() {
+  useVerifiedBusinessCreateGuard({
+    blockedMessage: 'Business verification is required to create products or menu items.',
+  });
+}
+
+export function useVerifiedBusinessAnnouncementGuard() {
+  useVerifiedBusinessCreateGuard({
+    blockedMessage: 'Business verification is required to create announcements.',
+  });
 }
 
 export function useCanCreateBusinessContent(): boolean {

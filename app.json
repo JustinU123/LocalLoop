@@ -63,7 +63,8 @@
           "cameraPermission": "LocalLoop uses your camera so verified businesses can create photos and videos for their business profile.",
           "microphonePermission": "LocalLoop uses your microphone so verified businesses can record videos for their business profile."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

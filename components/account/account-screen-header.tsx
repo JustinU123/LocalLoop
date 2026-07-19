@@ -8,15 +8,19 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 
 type AccountScreenHeaderProps = {
   title: string;
+  onBackPress?: () => void;
 };
 
-export function AccountScreenHeader({ title }: AccountScreenHeaderProps) {
+export function AccountScreenHeader({ title, onBackPress }: AccountScreenHeaderProps) {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.header}>
-      <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+      <Pressable
+        onPress={onBackPress ?? (() => router.back())}
+        style={styles.backButton}
+        hitSlop={8}>
         <Ionicons name="chevron-back" size={22} color={theme.text} />
       </Pressable>
       <Text style={styles.headerTitle}>{title}</Text>

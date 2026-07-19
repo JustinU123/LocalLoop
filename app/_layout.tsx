@@ -72,6 +72,14 @@ function RootNavigation() {
         <Stack.Screen name="business-create-photo" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-create-video" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-media-preview" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-create-promotion" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-promotion-preview" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-create-event" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-event-preview" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-create-product-item" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-product-item-preview" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-create-announcement" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-announcement-preview" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="account-type" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-verification" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-verification-pending" options={{ animation: 'slide_from_right' }} />

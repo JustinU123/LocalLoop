@@ -27,18 +27,26 @@ export default function BusinessCreateScreen() {
               description={option.description}
               icon={option.icon}
               onPress={() => {
-                if (option.id === 'photo-post') {
-                  router.push('/business-create-photo');
-                  return;
+                switch (option.id) {
+                  case 'photo-post':
+                    router.push('/business-create-photo');
+                    break;
+                  case 'video-post':
+                    router.push('/business-create-video');
+                    break;
+                  case 'promotion':
+                    router.push('/business-create-promotion');
+                    break;
+                  case 'event':
+                    router.push('/business-create-event');
+                    break;
+                  case 'product-menu':
+                    router.push('/business-create-product-item');
+                    break;
+                  case 'announcement':
+                    router.push('/business-create-announcement');
+                    break;
                 }
-                if (option.id === 'video-post') {
-                  router.push('/business-create-video');
-                  return;
-                }
-                router.push({
-                  pathname: '/create-option',
-                  params: { type: option.id },
-                });
               }}
             />
           ))}
