@@ -66,11 +66,11 @@ DECLARE
   metadata_display_name text;
 BEGIN
   metadata_account_type := NEW.raw_user_meta_data ->> 'account_type';
-  metadata_display_name := pg_catalog.coalesce(
-    pg_catalog.nullif(pg_catalog.btrim(NEW.raw_user_meta_data ->> 'display_name'), ''),
-    pg_catalog.nullif(pg_catalog.btrim(NEW.raw_user_meta_data ->> 'full_name'), ''),
-    pg_catalog.nullif(pg_catalog.btrim(NEW.raw_user_meta_data ->> 'name'), ''),
-    pg_catalog.nullif(pg_catalog.split_part(NEW.email, '@', 1), '')
+  metadata_display_name := COALESCE(
+    NULLIF(pg_catalog.btrim(NEW.raw_user_meta_data ->> 'display_name'), ''),
+    NULLIF(pg_catalog.btrim(NEW.raw_user_meta_data ->> 'full_name'), ''),
+    NULLIF(pg_catalog.btrim(NEW.raw_user_meta_data ->> 'name'), ''),
+    NULLIF(pg_catalog.split_part(NEW.email, '@', 1), '')
   );
 
   INSERT INTO public.profiles (id, display_name, account_type)
@@ -168,7 +168,7 @@ DECLARE
 BEGIN
   -- Allow trusted server/admin contexts to manage verification.
   -- Supabase service role and direct SQL/editor sessions bypass owner restrictions.
-  jwt_role := pg_catalog.coalesce(auth.jwt() ->> 'role', '');
+  jwt_role := COALESCE(auth.jwt() ->> 'role', '');
 
   IF jwt_role = 'service_role' OR auth.uid() IS NULL THEN
     RETURN NEW;
@@ -332,11 +332,11 @@ GRANT EXECUTE ON FUNCTION public.is_verified_business_owner(uuid) TO authenticat
 INSERT INTO public.profiles (id, display_name, account_type)
 SELECT
   u.id,
-  pg_catalog.coalesce(
-    pg_catalog.nullif(pg_catalog.btrim(u.raw_user_meta_data ->> 'display_name'), ''),
-    pg_catalog.nullif(pg_catalog.btrim(u.raw_user_meta_data ->> 'full_name'), ''),
-    pg_catalog.nullif(pg_catalog.btrim(u.raw_user_meta_data ->> 'name'), ''),
-    pg_catalog.nullif(pg_catalog.split_part(u.email, '@', 1), '')
+  COALESCE(
+    NULLIF(pg_catalog.btrim(u.raw_user_meta_data ->> 'display_name'), ''),
+    NULLIF(pg_catalog.btrim(u.raw_user_meta_data ->> 'full_name'), ''),
+    NULLIF(pg_catalog.btrim(u.raw_user_meta_data ->> 'name'), ''),
+    NULLIF(pg_catalog.split_part(u.email, '@', 1), '')
   ),
   CASE
     WHEN u.raw_user_meta_data ->> 'account_type' IN ('explorer', 'business')
