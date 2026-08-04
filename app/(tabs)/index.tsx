@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   Pressable,
   ScrollView,
@@ -27,33 +28,75 @@ import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/busine
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
-import { BUSINESSES, type Business } from '@/data/businesses';
+import {
+  buildHomeCategoryChips,
+  buildNewOnLocalLoopBusinesses,
+  buildRecentlyActiveBusinesses,
+  filterHomeBusinessesByCategory,
+  formatHomeBusinessLocation,
+  getHomeDiscoveryBusinesses,
+} from '@/services/homeBusinesses';
+import type { HomeBusiness, HomeCategoryChip } from '@/types/home-business';
+import { getBusinessInitials } from '@/utils/business-initials';
+import { homeBusinessToSavedBusiness } from '@/utils/home-business-save';
+import { openBusinessProfile } from '@/utils/open-business-profile';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TRENDING_CARD_WIDTH = SCREEN_WIDTH * 0.72;
 const GEM_CARD_WIDTH = (SCREEN_WIDTH - 52) / 2;
 
-type Category = {
-  id: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-};
+type Category = HomeCategoryChip;
 
-const CATEGORIES: Category[] = [
-  { id: 'food', label: 'Food', icon: 'restaurant' },
-  { id: 'clothing', label: 'Clothing', icon: 'shirt' },
-  { id: 'coffee', label: 'Coffee', icon: 'cafe' },
-  { id: 'beauty', label: 'Beauty', icon: 'sparkles' },
-  { id: 'fitness', label: 'Fitness', icon: 'barbell' },
-  { id: 'more', label: 'More', icon: 'grid' },
-];
+function BusinessCoverImage({
+  business,
+  style,
+  overlayStyle,
+  styles,
+}: {
+  business: HomeBusiness;
+  style: object;
+  overlayStyle?: object;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  if (business.coverImageUrl) {
+    return (
+      <>
+        <Image
+          source={{ uri: business.coverImageUrl }}
+          style={style}
+          contentFit="cover"
+          transition={300}
+        />
+        {overlayStyle ? <View style={overlayStyle} /> : null}
+      </>
+    );
+  }
+
+  return (
+    <View style={[style, styles.coverFallback]}>
+      <Text style={styles.coverFallbackText}>{getBusinessInitials(business.name)}</Text>
+    </View>
+  );
+}
+
+function SectionEmpty({
+  title,
+  body,
+  styles,
+}: {
+  title: string;
+  body: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.sectionEmpty}>
+      <Text style={styles.sectionEmptyTitle}>{title}</Text>
+      <Text style={styles.sectionEmptyBody}>{body}</Text>
+    </View>
+  );
+}
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-function openBusinessProfile(id: string) {
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  router.push(`/business/${id}`);
-}
 
 function CategoryChip({
   category,
@@ -100,7 +143,7 @@ function CategoryChip({
       onPress={onPress}
       style={[styles.chip, animatedChipStyle]}>
       <Ionicons
-        name={category.icon}
+        name={category.icon as keyof typeof Ionicons.glyphMap}
         size={15}
         color={selected ? theme.onEmerald : theme.textSecondary}
       />
@@ -136,40 +179,67 @@ function SaveButton({
   );
 }
 
-function TrendingCard({
+type FeaturedBadgeVariant = 'verified' | 'promotional' | 'neutral';
+
+function FeaturedBusinessCard({
   business,
+  badge,
+  badgeVariant = 'neutral',
   saved,
   onToggleSave,
   theme,
   styles,
 }: {
-  business: Business;
+  business: HomeBusiness;
+  badge: string;
+  badgeVariant?: FeaturedBadgeVariant;
   saved: boolean;
   onToggleSave: () => void;
   theme: AppThemeTokens;
   styles: ReturnType<typeof createStyles>;
 }) {
+  const location = formatHomeBusinessLocation(business);
+
+  const badgeStyle =
+    badgeVariant === 'verified'
+      ? [styles.trendingBadge, styles.trendingBadgeVerified]
+      : badgeVariant === 'promotional'
+        ? [styles.trendingBadge, styles.trendingBadgePromotional]
+        : [styles.trendingBadge, styles.trendingBadgeNeutral];
+
+  const badgeTextStyle =
+    badgeVariant === 'verified'
+      ? [styles.trendingBadgeText, styles.trendingBadgeTextVerified]
+      : badgeVariant === 'promotional'
+        ? [styles.trendingBadgeText, styles.trendingBadgeTextPromotional]
+        : [styles.trendingBadgeText, styles.trendingBadgeTextNeutral];
+
   return (
     <View style={styles.trendingCard}>
       <Pressable
         style={({ pressed }) => [styles.trendingCardPressable, pressed && styles.cardPressed]}
-        onPress={() => openBusinessProfile(business.id)}>
-        <Image source={{ uri: business.image }} style={styles.trendingImage} contentFit="cover" transition={300} />
-        <View style={styles.imageOverlay} />
+        onPress={() => openBusinessProfile(business.id, { source: 'home' })}>
+        <BusinessCoverImage business={business} style={styles.trendingImage} styles={styles} />
+        <View pointerEvents="none" style={styles.trendingBottomScrimFade} />
+        <View pointerEvents="none" style={styles.trendingBottomScrim} />
         <View style={styles.trendingTopRow}>
-          <View style={styles.trendingBadge}>
-            <Text style={styles.trendingBadgeText}>Trending</Text>
+          <View style={badgeStyle}>
+            <Text style={badgeTextStyle}>{badge}</Text>
           </View>
         </View>
         <View style={styles.trendingFooter}>
-          <Text style={styles.trendingName}>{business.name}</Text>
+          <Text style={styles.trendingName} numberOfLines={2}>
+            {business.name}
+          </Text>
           <View style={styles.trendingMeta}>
-            <Text style={styles.trendingCategory}>{business.category}</Text>
-            <Text style={styles.trendingDot}>·</Text>
-            <Text style={styles.trendingDistance}>{business.distance}</Text>
-            <Text style={styles.trendingDot}>·</Text>
-            <Ionicons name="star" size={12} color={theme.star} />
-            <Text style={styles.trendingRating}>{business.rating.toFixed(1)}</Text>
+            <Text style={styles.trendingCategory} numberOfLines={1}>
+              {business.category}
+            </Text>
+            {location ? (
+              <Text style={styles.trendingLocation} numberOfLines={1}>
+                {location}
+              </Text>
+            ) : null}
           </View>
         </View>
       </Pressable>
@@ -180,40 +250,41 @@ function TrendingCard({
   );
 }
 
-function HiddenGemCard({
+function CompactBusinessCard({
   business,
   saved,
   onToggleSave,
   theme,
   styles,
 }: {
-  business: Business;
+  business: HomeBusiness;
   saved: boolean;
   onToggleSave: () => void;
   theme: AppThemeTokens;
   styles: ReturnType<typeof createStyles>;
 }) {
+  const location = formatHomeBusinessLocation(business);
+
   return (
     <View style={styles.gemCard}>
       <Pressable
         style={({ pressed }) => [pressed && styles.cardPressed]}
-        onPress={() => openBusinessProfile(business.id)}>
+        onPress={() => openBusinessProfile(business.id, { source: 'home' })}>
         <View style={styles.gemImageWrap}>
-          <Image source={{ uri: business.image }} style={styles.gemImage} contentFit="cover" transition={300} />
-          <View style={styles.gemImageOverlay} />
+          <BusinessCoverImage business={business} style={styles.gemImage} styles={styles} />
         </View>
         <View style={styles.gemBody}>
-          <Text style={styles.gemName} numberOfLines={1}>
+          <Text style={styles.gemName} numberOfLines={2}>
             {business.name}
           </Text>
-          <View style={styles.gemMeta}>
-            <Text style={styles.gemCategory}>{business.category}</Text>
-            <Text style={styles.gemDistance}>{business.distance}</Text>
-          </View>
-          <View style={styles.gemRatingRow}>
-            <Ionicons name="star" size={11} color={theme.star} />
-            <Text style={styles.gemRating}>{business.rating.toFixed(1)}</Text>
-          </View>
+          <Text style={styles.gemCategory} numberOfLines={1}>
+            {business.category}
+          </Text>
+          {location ? (
+            <Text style={styles.gemLocation} numberOfLines={1}>
+              {location}
+            </Text>
+          ) : null}
         </View>
       </Pressable>
       <View style={styles.gemSaveWrap}>
@@ -227,29 +298,112 @@ export default function HomeScreen() {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { isBusinessSaved, toggleBusinessSaved } = useSavedItems();
-  const [selectedCategory, setSelectedCategory] = useState('more');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [businesses, setBusinesses] = useState<HomeBusiness[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasLoadedOnceRef = useRef(false);
+
+  const loadBusinesses = useCallback(async (mode: 'initial' | 'silent' = 'initial') => {
+    if (mode === 'initial') {
+      setLoading(true);
+    }
+
+    const result = await getHomeDiscoveryBusinesses();
+
+    if (mode === 'initial') {
+      setLoading(false);
+    }
+
+    if (!result.ok) {
+      setErrorMessage(result.message);
+      if (__DEV__) {
+        console.error('[home-screen:loadBusinesses]', result.message);
+      }
+      return;
+    }
+
+    setErrorMessage(null);
+    setBusinesses(result.businesses);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const mode = hasLoadedOnceRef.current ? 'silent' : 'initial';
+      void loadBusinesses(mode).finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
+    }, [loadBusinesses]),
+  );
 
   const handleCategoryPress = (id: string) => {
     Haptics.selectionAsync();
     setSelectedCategory(id);
   };
 
-  const filteredBusinesses = useMemo(() => {
-    if (selectedCategory === 'more') return BUSINESSES;
-    return BUSINESSES.filter(
-      (business) => business.category.toLowerCase() === selectedCategory,
+  const categories = useMemo(() => buildHomeCategoryChips(businesses), [businesses]);
+
+  const filteredBusinesses = useMemo(
+    () => filterHomeBusinessesByCategory(businesses, selectedCategory),
+    [businesses, selectedCategory],
+  );
+
+  const nearbyBusinesses = filteredBusinesses;
+  const recentlyActiveBusinesses = useMemo(
+    () => buildRecentlyActiveBusinesses(filteredBusinesses),
+    [filteredBusinesses],
+  );
+  const newBusinesses = useMemo(
+    () => buildNewOnLocalLoopBusinesses(filteredBusinesses),
+    [filteredBusinesses],
+  );
+
+  if (loading && businesses.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <View>
+            <LocalLoopWordmark style={styles.headerWordmark} />
+            <Text style={styles.title}>Discover Local</Text>
+          </View>
+          <Pressable style={styles.profileButton} onPress={() => router.push('/settings')}>
+            <Ionicons name="person-circle-outline" size={30} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={theme.emerald} size="large" />
+          <Text style={styles.loadingText}>Loading local businesses…</Text>
+        </View>
+      </SafeAreaView>
     );
-  }, [selectedCategory]);
+  }
 
-  const trendingBusinesses = useMemo(
-    () => filteredBusinesses.filter((business) => business.trending),
-    [filteredBusinesses],
-  );
-
-  const hiddenGemBusinesses = useMemo(
-    () => filteredBusinesses.filter((business) => business.hiddenGem),
-    [filteredBusinesses],
-  );
+  if (errorMessage && businesses.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <View>
+            <LocalLoopWordmark style={styles.headerWordmark} />
+            <Text style={styles.title}>Discover Local</Text>
+          </View>
+          <Pressable style={styles.profileButton} onPress={() => router.push('/settings')}>
+            <Ionicons name="person-circle-outline" size={30} color={theme.textSecondary} />
+          </Pressable>
+        </View>
+        <View style={styles.errorState}>
+          <Text style={styles.errorTitle}>Unable to load businesses</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Pressable
+            onPress={() => {
+              void loadBusinesses('initial');
+            }}
+            style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -284,7 +438,7 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chipsRow}>
-            {CATEGORIES.map((category) => (
+            {categories.map((category) => (
               <CategoryChip
                 key={category.id}
                 category={category}
@@ -302,47 +456,96 @@ export default function HomeScreen() {
           entering={FadeIn.duration(280)}
           exiting={FadeOut.duration(180)}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending</Text>
-            <Pressable>
-              <Text style={styles.sectionAction}>See all</Text>
-            </Pressable>
+            <Text style={styles.sectionTitle}>Nearby Local Businesses</Text>
+            <Text style={styles.sectionCount}>{nearbyBusinesses.length} verified</Text>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToInterval={TRENDING_CARD_WIDTH + 14}
-            contentContainerStyle={styles.trendingRow}>
-            {trendingBusinesses.map((business) => (
-              <TrendingCard
-                key={business.id}
-                business={business}
-                saved={isBusinessSaved(business.id)}
-                onToggleSave={() => toggleBusinessSaved(business)}
-                theme={theme}
-                styles={styles}
-              />
-            ))}
-          </ScrollView>
+          {nearbyBusinesses.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={TRENDING_CARD_WIDTH + 14}
+              contentContainerStyle={styles.trendingRow}>
+              {nearbyBusinesses.map((business) => (
+                <FeaturedBusinessCard
+                  key={`nearby-${business.id}`}
+                  business={business}
+                  badge="Verified local"
+                  badgeVariant="verified"
+                  saved={isBusinessSaved(business.id)}
+                  onToggleSave={() => toggleBusinessSaved(homeBusinessToSavedBusiness(business))}
+                  theme={theme}
+                  styles={styles}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <SectionEmpty
+              title="No additional businesses nearby yet."
+              body="More local businesses are joining soon."
+              styles={styles}
+            />
+          )}
 
           <View style={[styles.sectionHeader, styles.gemsSectionHeader]}>
-            <Text style={styles.sectionTitle}>⭐ Hidden Gems</Text>
-            <Text style={styles.sectionCountAccent}>{hiddenGemBusinesses.length} spots</Text>
+            <Text style={styles.sectionTitle}>Recently Active</Text>
+            <Text style={styles.sectionCountAccent}>{recentlyActiveBusinesses.length} active</Text>
           </View>
 
-          <View style={styles.gemGrid}>
-            {hiddenGemBusinesses.map((business) => (
-              <HiddenGemCard
-                key={business.id}
-                business={business}
-                saved={isBusinessSaved(business.id)}
-                onToggleSave={() => toggleBusinessSaved(business)}
-                theme={theme}
-                styles={styles}
-              />
-            ))}
+          {recentlyActiveBusinesses.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={TRENDING_CARD_WIDTH + 14}
+              contentContainerStyle={styles.trendingRow}>
+              {recentlyActiveBusinesses.map((business) => (
+                <FeaturedBusinessCard
+                  key={`active-${business.id}`}
+                  business={business}
+                  badge="Recently active"
+                  badgeVariant="neutral"
+                  saved={isBusinessSaved(business.id)}
+                  onToggleSave={() => toggleBusinessSaved(homeBusinessToSavedBusiness(business))}
+                  theme={theme}
+                  styles={styles}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <SectionEmpty
+              title="No recently active businesses yet."
+              body="More local businesses are joining soon."
+              styles={styles}
+            />
+          )}
+
+          <View style={[styles.sectionHeader, styles.gemsSectionHeader]}>
+            <Text style={styles.sectionTitle}>New on LocalLoop</Text>
+            <Text style={styles.sectionCountAccent}>{newBusinesses.length} new</Text>
           </View>
+
+          {newBusinesses.length > 0 ? (
+            <View style={styles.gemGrid}>
+              {newBusinesses.map((business) => (
+                <CompactBusinessCard
+                  key={`new-${business.id}`}
+                  business={business}
+                  saved={isBusinessSaved(business.id)}
+                  onToggleSave={() => toggleBusinessSaved(homeBusinessToSavedBusiness(business))}
+                  theme={theme}
+                  styles={styles}
+                />
+              ))}
+            </View>
+          ) : (
+            <SectionEmpty
+              title="No new businesses yet."
+              body="More local businesses are joining soon."
+              styles={styles}
+            />
+          )}
         </Animated.View>
       </ScrollView>
 
@@ -487,7 +690,7 @@ function createStyles(theme: AppThemeTokens) {
   },
   trendingCard: {
     width: TRENDING_CARD_WIDTH,
-    height: 320,
+    height: 288,
     borderRadius: BrandRadius.lg,
     overflow: 'hidden',
     backgroundColor: theme.surfaceElevated,
@@ -499,83 +702,193 @@ function createStyles(theme: AppThemeTokens) {
   },
   trendingSaveWrap: {
     position: 'absolute',
-    top: 14,
-    right: 14,
-    zIndex: 2,
+    top: 12,
+    right: 12,
+    zIndex: 3,
   },
   trendingImage: {
     ...StyleSheet.absoluteFillObject,
   },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.imageScrim,
+  trendingBottomScrimFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 108,
+    height: 52,
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+  },
+  trendingBottomScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 108,
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
   },
   trendingTopRow: {
     position: 'absolute',
-    top: 14,
-    left: 14,
-    right: 14,
+    top: 12,
+    left: 12,
+    right: 56,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    zIndex: 2,
   },
   trendingBadge: {
-    backgroundColor: theme.coralGlow,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: BrandRadius.pill,
     borderWidth: 1,
+    maxWidth: '100%',
+  },
+  trendingBadgeVerified: {
+    backgroundColor: theme.emerald,
+    borderColor: theme.emeraldDark,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  trendingBadgePromotional: {
+    backgroundColor: theme.coral,
     borderColor: theme.coral,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  trendingBadgeNeutral: {
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   trendingBadgeText: {
-    color: theme.coral,
-    fontSize: 12,
-    fontFamily: BrandFonts.bold,
+    fontSize: 10,
+    fontFamily: BrandFonts.semiBold,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
+  },
+  trendingBadgeTextVerified: {
+    color: theme.onEmerald,
+  },
+  trendingBadgeTextPromotional: {
+    color: theme.onCoral,
+  },
+  trendingBadgeTextNeutral: {
+    color: theme.onImage,
   },
   trendingFooter: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 16,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    paddingTop: 14,
+    gap: 8,
+    zIndex: 2,
   },
   trendingName: {
     color: theme.onImage,
-    fontSize: 24,
+    fontSize: 21,
+    lineHeight: 26,
     fontFamily: BrandFonts.bold,
-    letterSpacing: -0.4,
-    marginBottom: 6,
+    letterSpacing: -0.35,
   },
   trendingMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: 3,
   },
   trendingCategory: {
-    color: theme.onImageMuted,
-    fontSize: 14,
-    fontFamily: BrandFonts.semiBold,
+    color: 'rgba(255, 255, 255, 0.88)',
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: BrandFonts.medium,
   },
-  trendingDistance: {
-    color: theme.onImageMuted,
-    fontSize: 14,
+  trendingLocation: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 13,
+    lineHeight: 18,
     fontFamily: BrandFonts.regular,
   },
-  trendingDot: {
-    color: theme.onImageMuted,
-    fontSize: 14,
+  coverFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.emeraldGlow,
   },
-  trendingRating: {
-    color: theme.onImage,
-    fontSize: 14,
+  coverFallbackText: {
+    color: theme.emerald,
+    fontSize: 28,
     fontFamily: BrandFonts.bold,
   },
+  sectionEmpty: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  sectionEmptyTitle: {
+    color: theme.text,
+    fontSize: 16,
+    fontFamily: BrandFonts.semiBold,
+  },
+  sectionEmptyBody: {
+    color: theme.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: BrandFonts.regular,
+  },
+  loadingState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    color: theme.textSecondary,
+    fontSize: 15,
+    fontFamily: BrandFonts.medium,
+    textAlign: 'center',
+  },
+  errorState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  errorTitle: {
+    color: theme.text,
+    fontSize: 18,
+    fontFamily: BrandFonts.bold,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: theme.textSecondary,
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: BrandFonts.regular,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 4,
+    backgroundColor: theme.emerald,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  retryButtonText: {
+    color: theme.onEmerald,
+    fontSize: 15,
+    fontFamily: BrandFonts.semiBold,
+  },
   saveButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.imageControlBg,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0, 0, 0, 0.34)',
     borderWidth: 1,
-    borderColor: theme.imageControlBorder,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -603,56 +916,45 @@ function createStyles(theme: AppThemeTokens) {
     ...theme.shadowCard,
   },
   gemImageWrap: {
-    height: 128,
+    height: 118,
     position: 'relative',
+    backgroundColor: theme.surfaceElevated,
   },
   gemImage: {
     width: '100%',
     height: '100%',
   },
-  gemImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.imageScrimLight,
-  },
   gemSaveWrap: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 10,
+    right: 10,
     zIndex: 2,
   },
   gemBody: {
-    padding: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+    gap: 4,
   },
   gemName: {
     color: theme.text,
     fontSize: 15,
+    lineHeight: 20,
     fontFamily: BrandFonts.bold,
-    marginBottom: 4,
-  },
-  gemMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+    letterSpacing: -0.15,
   },
   gemCategory: {
     color: theme.textSecondary,
     fontSize: 12,
-    fontFamily: BrandFonts.semiBold,
+    lineHeight: 16,
+    fontFamily: BrandFonts.medium,
   },
-  gemDistance: {
-    color: theme.textSecondary,
+  gemLocation: {
+    color: theme.textMuted,
     fontSize: 12,
+    lineHeight: 16,
     fontFamily: BrandFonts.regular,
-  },
-  gemRatingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  gemRating: {
-    color: theme.text,
-    fontSize: 12,
-    fontFamily: BrandFonts.bold,
+    marginTop: 1,
   },
   mapFab: {
     position: 'absolute',

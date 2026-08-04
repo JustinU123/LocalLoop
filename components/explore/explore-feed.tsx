@@ -1,11 +1,13 @@
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   ListRenderItem,
   Pressable,
+  RefreshControl,
   Share,
   StyleSheet,
   Text,
@@ -17,15 +19,13 @@ import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { ExploreFilterToggle } from '@/components/explore/explore-filter-toggle';
 import { ExplorePostCard } from '@/components/explore/explore-post-card';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
-import {
-  EXPLORE_POSTS,
-  type ExplorePost,
-  type ExploreSegment,
-  filterExplorePosts,
-  getInitiallyFollowedBusinessIds,
-} from '@/data/explore-posts';
+import type { ExplorePost, ExploreSegment } from '@/data/explore-posts';
 import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import {
+  filterExplorePostsForSegment,
+  getPublishedExplorePosts,
+} from '@/services/explorePosts';
 import { openBusinessProfile } from '@/utils/open-business-profile';
 import { resetOnboarding } from '@/utils/onboarding-storage';
 
@@ -44,18 +44,66 @@ export function ExploreFeed({
 }: ExploreFeedProps) {
   const styles = useThemedStyles(createStyles);
   const [segment, setSegment] = useState<ExploreSegment>('nearby');
-  const [followedBusinessIds, setFollowedBusinessIds] = useState<Set<string>>(
-    () => getInitiallyFollowedBusinessIds(),
-  );
+  const [allPosts, setAllPosts] = useState<ExplorePost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [followedBusinessIds, setFollowedBusinessIds] = useState<Set<string>>(() => new Set());
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const { isPostSaved, togglePostSaved } = useSavedItems();
-  const [likeCounts, setLikeCounts] = useState<Record<string, number>>(() =>
-    Object.fromEntries(EXPLORE_POSTS.map((post) => [post.id, post.likeCount])),
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const hasLoadedOnceRef = useRef(false);
+
+  const loadPosts = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
+    if (mode === 'initial') {
+      setLoading(true);
+    }
+    if (mode === 'refresh') {
+      setRefreshing(true);
+    }
+
+    const result = await getPublishedExplorePosts();
+
+    if (mode === 'initial') {
+      setLoading(false);
+    }
+    if (mode === 'refresh') {
+      setRefreshing(false);
+    }
+
+    if (!result.ok) {
+      setErrorMessage(result.message);
+      if (__DEV__) {
+        console.error('[explore-feed:loadPosts]', result.message);
+      }
+      return;
+    }
+
+    setErrorMessage(null);
+    setAllPosts(result.posts);
+    setLikeCounts((current) => {
+      const next = { ...current };
+      for (const post of result.posts) {
+        if (next[post.id] === undefined) {
+          next[post.id] = post.likeCount;
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const mode = hasLoadedOnceRef.current ? 'silent' : 'initial';
+      void loadPosts(mode).finally(() => {
+        hasLoadedOnceRef.current = true;
+      });
+    }, [loadPosts]),
   );
 
   const posts = useMemo(
-    () => filterExplorePosts(segment, followedBusinessIds),
-    [segment, followedBusinessIds],
+    () => filterExplorePostsForSegment(allPosts, segment, followedBusinessIds),
+    [allPosts, segment, followedBusinessIds],
   );
 
   const toggleLike = useCallback((post: ExplorePost) => {
@@ -95,8 +143,8 @@ export function ExploreFeed({
     });
   }, []);
 
-  const handleViewBusiness = useCallback((businessId: string) => {
-    openBusinessProfile(businessId);
+  const handleViewBusiness = useCallback((businessId: string, postId?: string) => {
+    openBusinessProfile(businessId, { postId, source: 'explore' });
   }, []);
 
   const handleComments = useCallback(() => {
@@ -119,7 +167,7 @@ export function ExploreFeed({
     ({ item }) => (
       <ExplorePostCard
         post={item}
-        showDistance={segment === 'nearby'}
+        showDistance={false}
         isFollowing={followedBusinessIds.has(item.businessId)}
         liked={likedIds.has(item.id)}
         saved={isPostSaved(item.id)}
@@ -127,13 +175,12 @@ export function ExploreFeed({
         onToggleLike={() => toggleLike(item)}
         onToggleSave={() => togglePostSaved(item)}
         onToggleFollow={() => toggleFollow(item.businessId)}
-        onPressBusiness={() => handleViewBusiness(item.businessId)}
+        onPressBusiness={() => handleViewBusiness(item.businessId, item.id)}
         onPressComments={handleComments}
         onPressShare={() => handleShare(item)}
       />
     ),
     [
-      segment,
       followedBusinessIds,
       likedIds,
       likeCounts,
@@ -158,10 +205,22 @@ export function ExploreFeed({
 
   const listEmpty = (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyTitle}>No posts from followed businesses</Text>
-      <Text style={styles.emptyText}>
-        Follow local businesses in Nearby to build your personalized feed.
-      </Text>
+      {segment === 'following' ? (
+        <>
+          <Text style={styles.emptyTitle}>Follow local businesses to see their posts here.</Text>
+          <Text style={styles.emptyText}>
+            Following is not connected to your account yet. Browse Nearby to discover verified
+            businesses for now.
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text style={styles.emptyTitle}>No local posts yet.</Text>
+          <Text style={styles.emptyText}>
+            Be the first to discover what nearby businesses are sharing.
+          </Text>
+        </>
+      )}
     </View>
   );
 
@@ -177,6 +236,47 @@ export function ExploreFeed({
       </Pressable>
     ) : null;
 
+  if (loading && allPosts.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.listHeader}>
+          {showWordmark ? <LocalLoopWordmark style={styles.headerWordmark} /> : null}
+          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+          <Text style={styles.title}>{title}</Text>
+          <ExploreFilterToggle selectedSegment={segment} onSelect={setSegment} />
+        </View>
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={styles.loadingIndicator.color} size="large" />
+          <Text style={styles.loadingText}>Loading local posts…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (errorMessage && allPosts.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.listHeader}>
+          {showWordmark ? <LocalLoopWordmark style={styles.headerWordmark} /> : null}
+          {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+          <Text style={styles.title}>{title}</Text>
+          <ExploreFilterToggle selectedSegment={segment} onSelect={setSegment} />
+        </View>
+        <View style={styles.errorState}>
+          <Text style={styles.errorTitle}>Unable to load posts</Text>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+          <Pressable
+            onPress={() => {
+              void loadPosts('initial');
+            }}
+            style={styles.retryButton}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
@@ -184,10 +284,19 @@ export function ExploreFeed({
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={segment === 'following' ? listEmpty : null}
+        ListEmptyComponent={listEmpty}
         ListFooterComponent={listFooter}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void loadPosts('refresh');
+            }}
+            tintColor={styles.loadingIndicator.color}
+          />
+        }
       />
     </SafeAreaView>
   );
@@ -201,6 +310,7 @@ function createStyles(theme: AppThemeTokens) {
     },
     listContent: {
       paddingBottom: 120,
+      flexGrow: 1,
     },
     listHeader: {
       paddingHorizontal: 20,
@@ -224,6 +334,54 @@ function createStyles(theme: AppThemeTokens) {
       fontFamily: BrandFonts.bold,
       letterSpacing: -0.8,
       marginTop: -6,
+    },
+    loadingState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      paddingHorizontal: 32,
+    },
+    loadingIndicator: {
+      color: theme.emerald,
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      fontFamily: BrandFonts.medium,
+      textAlign: 'center',
+    },
+    errorState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      paddingHorizontal: 32,
+    },
+    errorTitle: {
+      color: theme.text,
+      fontSize: 18,
+      fontFamily: BrandFonts.bold,
+      textAlign: 'center',
+    },
+    errorText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'center',
+    },
+    retryButton: {
+      marginTop: 4,
+      backgroundColor: theme.emerald,
+      borderRadius: 12,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+    },
+    retryButtonText: {
+      color: theme.onEmerald,
+      fontSize: 15,
+      fontFamily: BrandFonts.semiBold,
     },
     emptyState: {
       alignItems: 'center',

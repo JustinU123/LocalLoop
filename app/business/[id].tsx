@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   FlatList,
   Linking,
@@ -22,6 +23,8 @@ import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { getPublicBusinessProfile } from '@/services/publicBusinessProfile';
+import { getBusinessInitials } from '@/utils/business-initials';
 import {
   Business,
   BusinessPromotionItem,
@@ -217,7 +220,13 @@ function ProfileHeader({
   return (
     <View>
       <View style={styles.heroWrap}>
-        <Image source={{ uri: business.cover }} style={styles.heroImage} contentFit="cover" transition={300} />
+        {business.cover ? (
+          <Image source={{ uri: business.cover }} style={styles.heroImage} contentFit="cover" transition={300} />
+        ) : (
+          <View style={[styles.heroImage, styles.heroFallback]}>
+            <Text style={styles.heroFallbackText}>{getBusinessInitials(business.name)}</Text>
+          </View>
+        )}
         <View style={styles.heroOverlay} />
         <Pressable onPress={() => router.back()} style={[styles.backButton, { top: insetsTop + 8 }]}>
           <Ionicons name="chevron-back" size={22} color={theme.onImage} />
@@ -226,7 +235,13 @@ function ProfileHeader({
 
       <Animated.View entering={FadeInDown.duration(400)} style={styles.profileCardTop}>
         <View style={styles.logoWrap}>
-          <Image source={{ uri: business.logo }} style={styles.logo} contentFit="cover" transition={300} />
+          {business.logo ? (
+            <Image source={{ uri: business.logo }} style={styles.logo} contentFit="cover" transition={300} />
+          ) : (
+            <View style={[styles.logo, styles.logoFallback]}>
+              <Text style={styles.logoFallbackText}>{getBusinessInitials(business.name)}</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.nameRow}>
@@ -241,24 +256,40 @@ function ProfileHeader({
 
         <Text style={styles.categoryLine}>{business.category}</Text>
 
-        <View style={styles.statsRow}>
-          <Ionicons name="star" size={14} color={theme.star} />
-          <Text style={styles.ratingText}>{business.rating.toFixed(1)}</Text>
-          <Text style={styles.reviewCount}>{business.reviewCount} reviews</Text>
-          <Text style={styles.dot}>·</Text>
-          <Text style={styles.followerCount}>{formatFollowerCount(business.followerCount)} followers</Text>
-        </View>
-
-        <Text style={styles.bio}>{business.about}</Text>
-
-        <View style={styles.metaRow}>
-          <Text style={styles.distanceText}>{business.distance}</Text>
-          <Text style={styles.dot}>·</Text>
-          <View style={[styles.statusPill, business.isOpen ? styles.openPill : styles.closedPill]}>
-            <View style={[styles.statusDot, business.isOpen ? styles.openDot : styles.closedDot]} />
-            <Text style={styles.statusText}>{business.isOpen ? 'Open' : 'Closed'}</Text>
+        {business.reviewCount > 0 ? (
+          <View style={styles.statsRow}>
+            <Ionicons name="star" size={14} color={theme.star} />
+            <Text style={styles.ratingText}>{business.rating.toFixed(1)}</Text>
+            <Text style={styles.reviewCount}>{business.reviewCount} reviews</Text>
+            {business.followerCount > 0 ? (
+              <>
+                <Text style={styles.dot}>·</Text>
+                <Text style={styles.followerCount}>
+                  {formatFollowerCount(business.followerCount)} followers
+                </Text>
+              </>
+            ) : null}
           </View>
-        </View>
+        ) : null}
+
+        {business.about ? <Text style={styles.bio}>{business.about}</Text> : null}
+
+        {business.distance || business.hours ? (
+          <View style={styles.metaRow}>
+            {business.distance ? (
+              <>
+                <Text style={styles.distanceText}>{business.distance}</Text>
+                {business.hours ? <Text style={styles.dot}>·</Text> : null}
+              </>
+            ) : null}
+            {business.hours ? (
+              <View style={[styles.statusPill, business.isOpen ? styles.openPill : styles.closedPill]}>
+                <View style={[styles.statusDot, business.isOpen ? styles.openDot : styles.closedDot]} />
+                <Text style={styles.statusText}>{business.isOpen ? 'Open' : 'Closed'}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={styles.ctaRow}>
           <Pressable
@@ -290,13 +321,32 @@ function ProfileHeader({
           <CompactActionButton
             icon="navigate"
             label="Directions"
-            onPress={() => Linking.openURL(getAppleMapsDirectionsUrl(business.latitude, business.longitude))}
+            onPress={() => {
+              if (business.latitude && business.longitude) {
+                Linking.openURL(getAppleMapsDirectionsUrl(business.latitude, business.longitude));
+              }
+            }}
           />
-          <CompactActionButton icon="call" label="Call" onPress={() => Linking.openURL(`tel:${business.phone}`)} />
+          <CompactActionButton
+            icon="call"
+            label="Call"
+            onPress={() => {
+              if (business.phone) {
+                Linking.openURL(`tel:${business.phone}`);
+              }
+            }}
+          />
           <CompactActionButton
             icon="globe-outline"
             label="Website"
-            onPress={() => Linking.openURL(`https://${business.website}`)}
+            onPress={() => {
+              if (business.website) {
+                const url = business.website.startsWith('http')
+                  ? business.website
+                  : `https://${business.website}`;
+                Linking.openURL(url);
+              }
+            }}
           />
           <CompactActionButton icon="share-outline" label="Share" onPress={onShare} />
         </View>
@@ -325,13 +375,69 @@ function ProfileHeader({
 export default function BusinessProfileScreen() {
   const styles = useThemedStyles(createStyles);
   const { theme } = useAppTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const insets = useSafeAreaInsets();
-  const business = useMemo(() => getBusinessById(id ?? ''), [id]);
+  const businessId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [following, setFollowing] = useState(false);
   const { isBusinessSaved, toggleBusinessSaved } = useSavedItems();
   const saved = business ? isBusinessSaved(business.id) : false;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBusiness() {
+      setLoading(true);
+      setLoadError(null);
+
+      if (__DEV__) {
+        console.info('[business-profile] received route param id:', businessId);
+      }
+
+      const mockBusiness = getBusinessById(businessId);
+      if (mockBusiness) {
+        if (!cancelled) {
+          if (__DEV__) {
+            console.info('[business-profile] loaded mock business', { businessId });
+          }
+          setBusiness(mockBusiness);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const result = await getPublicBusinessProfile(businessId);
+      if (cancelled) {
+        return;
+      }
+
+      if (result.ok) {
+        setBusiness(result.business);
+        setLoadError(null);
+      } else {
+        setBusiness(null);
+        setLoadError(result.message);
+        if (__DEV__) {
+          console.error('[business-profile] supabase load failed', {
+            businessId,
+            code: result.code,
+            message: result.message,
+          });
+        }
+      }
+
+      setLoading(false);
+    }
+
+    void loadBusiness();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
 
   const tabRows = useMemo(
     () => (business ? buildTabRows(activeTab, business) : []),
@@ -446,10 +552,22 @@ export default function BusinessProfileScreen() {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.emptyState, { paddingTop: insets.top }]}>
+        <ActivityIndicator color={theme.emerald} size="large" />
+        <Text style={styles.loadingText}>Loading business profile…</Text>
+      </View>
+    );
+  }
+
   if (!business) {
     return (
       <View style={[styles.emptyState, { paddingTop: insets.top }]}>
         <Text style={styles.emptyTitle}>Business not found</Text>
+        {loadError && loadError !== 'Business not found' ? (
+          <Text style={styles.emptySubtitle}>{loadError}</Text>
+        ) : null}
         <Pressable onPress={() => router.back()} style={styles.emptyButton}>
           <Text style={styles.emptyButtonText}>Go back</Text>
         </Pressable>
@@ -517,6 +635,16 @@ function createStyles(theme: AppThemeTokens) {
     width: '100%',
     height: '100%',
   },
+  heroFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.emeraldGlow,
+  },
+  heroFallbackText: {
+    color: theme.emerald,
+    fontSize: 40,
+    fontFamily: BrandFonts.bold,
+  },
   heroOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: theme.imageScrimMedium,
@@ -560,6 +688,16 @@ function createStyles(theme: AppThemeTokens) {
   logo: {
     width: '100%',
     height: '100%',
+  },
+  logoFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.emeraldGlow,
+  },
+  logoFallbackText: {
+    color: theme.emerald,
+    fontSize: 18,
+    fontFamily: BrandFonts.bold,
   },
   nameRow: {
     flexDirection: 'row',
@@ -1115,6 +1253,19 @@ function createStyles(theme: AppThemeTokens) {
     color: theme.text,
     fontSize: 18,
     fontWeight: '700',
+  },
+  emptySubtitle: {
+    color: theme.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: BrandFonts.regular,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    color: theme.textSecondary,
+    fontSize: 15,
+    fontFamily: BrandFonts.medium,
   },
   emptyButton: {
     backgroundColor: theme.emerald,

@@ -6,6 +6,7 @@ import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/busine
 import type { ExplorePost } from '@/data/explore-posts';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { getBusinessInitials } from '@/utils/business-initials';
 
 type ExplorePostHeaderProps = {
   post: ExplorePost;
@@ -32,12 +33,18 @@ export function ExplorePostHeader({
         style={({ pressed }) => [styles.businessTap, pressed && styles.businessTapPressed]}
         accessibilityRole="button"
         accessibilityLabel={`View ${post.businessName}`}>
-        <Image
-          source={{ uri: post.businessLogo }}
-          style={styles.avatar}
-          contentFit="cover"
-          transition={200}
-        />
+        {post.businessLogo ? (
+          <Image
+            source={{ uri: post.businessLogo }}
+            style={styles.avatar}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarFallbackText}>{getBusinessInitials(post.businessName)}</Text>
+          </View>
+        )}
         <View style={styles.textBlock}>
           <View style={styles.nameRow}>
             <Text style={styles.businessName}>{post.businessName}</Text>
@@ -50,7 +57,7 @@ export function ExplorePostHeader({
           </View>
           <View style={styles.metaRow}>
             <Text style={styles.category}>{post.category}</Text>
-            {showDistance ? (
+            {showDistance && post.distance ? (
               <>
                 <Text style={styles.dot}>·</Text>
                 <Text style={styles.distance}>{post.distance}</Text>
@@ -102,6 +109,21 @@ function createStyles(theme: AppThemeTokens) {
       backgroundColor: theme.surfaceElevated,
       borderWidth: 1,
       borderColor: theme.border,
+    },
+    avatarFallback: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: theme.emeraldGlow,
+      borderWidth: 1,
+      borderColor: theme.emerald,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarFallbackText: {
+      color: theme.emerald,
+      fontSize: 14,
+      fontFamily: BrandFonts.bold,
     },
     textBlock: {
       flex: 1,
