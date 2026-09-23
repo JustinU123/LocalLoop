@@ -25,6 +25,15 @@ export type BusinessRow = {
   longitude: number | null;
   verification_status: DbVerificationStatus;
   verified_at: string | null;
+  /** IANA timezone; present after 20260813_business_weekly_hours migration */
+  timezone?: string | null;
+  /** Structured weekly hours JSON; present after 20260813_business_weekly_hours migration */
+  weekly_hours?: unknown;
+  /** Present after 20260814_business_branding migration */
+  logo_url?: string | null;
+  logo_storage_path?: string | null;
+  cover_image_url?: string | null;
+  cover_storage_path?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -5,7 +5,7 @@ import {
   PlusJakartaSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -15,6 +15,7 @@ import { AccountModeProvider } from '@/contexts/account-mode-context';
 import { AppThemeProvider, useAppTheme } from '@/contexts/app-theme-context';
 import { NotificationsProvider } from '@/contexts/notifications-context';
 import { LocationSettingsProvider } from '@/contexts/location-settings-context';
+import { FollowedBusinessesProvider } from '@/contexts/followed-businesses-context';
 import { SavedItemsProvider } from '@/contexts/saved-items-context';
 
 function RootNavigation() {
@@ -67,6 +68,25 @@ function RootNavigation() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(business-tabs)" />
         <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-edit-profile" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-settings" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="business-settings-profile-information"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="business-settings-profile-contact"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="business-settings-profile-location"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen name="business-settings-hours" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="business-settings-photos"
+          options={{ animation: 'slide_from_right' }}
+        />
         <Stack.Screen name="current-mode" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="create-option" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-create-photo" options={{ animation: 'slide_from_right' }} />
@@ -74,6 +94,12 @@ function RootNavigation() {
         <Stack.Screen name="business-media-preview" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-create-promotion" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-promotion-preview" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-manage-promotions" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-manage-events" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-manage-posts" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-manage-menu" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-edit-post" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business-edit-promotion" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-create-event" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-event-preview" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business-create-product-item" options={{ animation: 'slide_from_right' }} />
@@ -93,6 +119,7 @@ function RootNavigation() {
         <Stack.Screen name="about" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="map" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="business/review/[businessId]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
@@ -105,11 +132,13 @@ export default function RootLayout() {
     <AppThemeProvider>
       <SavedItemsProvider>
         <LocationSettingsProvider>
-          <AccountModeProvider>
-            <NotificationsProvider>
-              <RootNavigation />
-            </NotificationsProvider>
-          </AccountModeProvider>
+          <FollowedBusinessesProvider>
+            <AccountModeProvider>
+              <NotificationsProvider>
+                <RootNavigation />
+              </NotificationsProvider>
+            </AccountModeProvider>
+          </FollowedBusinessesProvider>
         </LocationSettingsProvider>
       </SavedItemsProvider>
     </AppThemeProvider>
