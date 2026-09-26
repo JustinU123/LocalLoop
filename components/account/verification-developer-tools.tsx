@@ -12,6 +12,7 @@ import {
   devResetToExplorer,
   devSetPendingReview,
 } from '@/utils/account-mode-dev';
+import { testMapChainPlacesDiscovery } from '@/utils/test-map-chain-places';
 
 type DevToolButtonProps = {
   label: string;
@@ -111,6 +112,21 @@ export function VerificationDeveloperTools() {
               return devResetToExplorer(userId);
             })
           }
+        />
+        <DevToolButton
+          label="Test Foursquare Chain Discovery"
+          loading={loadingAction === 'chain-places'}
+          styles={styles}
+          onPress={async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setLoadingAction('chain-places');
+            try {
+              const result = await testMapChainPlacesDiscovery();
+              return result.ok;
+            } finally {
+              setLoadingAction(null);
+            }
+          }}
         />
       </View>
     </View>

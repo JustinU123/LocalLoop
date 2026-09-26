@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { BrandFonts } from '@/constants/business-theme';
+import { AnalyticsAccessProvider } from '@/contexts/analytics-access-context';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useBusinessTabGuard } from '@/hooks/use-app-mode-guard';
 
@@ -12,6 +13,7 @@ export default function BusinessTabLayout() {
   useBusinessTabGuard();
 
   return (
+    <AnalyticsAccessProvider>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: theme.emerald,
@@ -68,10 +70,10 @@ export default function BusinessTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="activity"
+        name="analytics"
         options={{
-          title: 'Activity',
-          tabBarIcon: ({ color }) => <Ionicons name="notifications-outline" size={24} color={color} />,
+          title: 'Analytics',
+          tabBarIcon: ({ color }) => <Ionicons name="bar-chart-outline" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -81,7 +83,14 @@ export default function BusinessTabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="storefront-outline" size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
+    </AnalyticsAccessProvider>
   );
 }
 

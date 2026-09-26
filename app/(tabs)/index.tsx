@@ -23,9 +23,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BusinessSearchPanel } from '@/components/business/business-search-panel';
 import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useLocationSettings } from '@/contexts/location-settings-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import {
@@ -302,7 +304,10 @@ export default function HomeScreen() {
   const [businesses, setBusinesses] = useState<HomeBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const hasLoadedOnceRef = useRef(false);
+  const { coordinates } = useLocationSettings();
+  const isSearchActive = searchQuery.trim().length >= 2;
 
   const loadBusinesses = useCallback(async (mode: 'initial' | 'silent' = 'initial') => {
     if (mode === 'initial') {
@@ -425,32 +430,46 @@ export default function HomeScreen() {
           <View style={styles.searchBar}>
             <Ionicons name="search" size={18} color={theme.textSecondary} />
             <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
               placeholder="Search restaurants, coffee, boutiques..."
               placeholderTextColor={theme.textSecondary}
               style={styles.searchInput}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
             />
             <Pressable style={styles.filterButton}>
               <Ionicons name="options-outline" size={18} color={theme.textSecondary} />
             </Pressable>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsRow}>
-            {categories.map((category) => (
-              <CategoryChip
-                key={category.id}
-                category={category}
-                selected={selectedCategory === category.id}
-                onPress={() => handleCategoryPress(category.id)}
-                theme={theme}
-                styles={styles}
-              />
-            ))}
-          </ScrollView>
+          {isSearchActive ? null : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsRow}>
+              {categories.map((category) => (
+                <CategoryChip
+                  key={category.id}
+                  category={category}
+                  selected={selectedCategory === category.id}
+                  onPress={() => handleCategoryPress(category.id)}
+                  theme={theme}
+                  styles={styles}
+                />
+              ))}
+            </ScrollView>
+          )}
         </View>
 
+        {isSearchActive ? (
+          <View style={styles.searchResultsSection}>
+            <BusinessSearchPanel query={searchQuery} origin={coordinates} />
+          </View>
+        ) : null}
+
+        {!isSearchActive ? (
         <Animated.View
           key={selectedCategory}
           entering={FadeIn.duration(280)}
@@ -547,6 +566,7 @@ export default function HomeScreen() {
             />
           )}
         </Animated.View>
+        ) : null}
       </ScrollView>
 
       <Pressable
@@ -597,6 +617,10 @@ function createStyles(theme: AppThemeTokens) {
   },
   scrollContent: {
     paddingBottom: 120,
+  },
+  searchResultsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   stickyHeader: {
     backgroundColor: theme.bg,
@@ -707,7 +731,7 @@ function createStyles(theme: AppThemeTokens) {
     zIndex: 3,
   },
   trendingImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   trendingBottomScrimFade: {
     position: 'absolute',

@@ -17,7 +17,11 @@ export type BusinessSubmissionResult =
   | { ok: false; code: BusinessErrorCode; message: string };
 
 const BUSINESS_SELECT =
-  'id, owner_user_id, name, category, description, phone, email, instagram, website, street_address, city, state, postal_code, latitude, longitude, verification_status, verified_at, created_at, updated_at';
+  'id, owner_user_id, name, category, description, phone, email, instagram, website, street_address, city, state, postal_code, latitude, longitude, verification_status, verified_at, profile_completion_celebrated_at, created_at, updated_at';
+
+export type AcknowledgeProfileCompletionCelebrationResult =
+  | { ok: true; celebratedAt: string }
+  | { ok: false; code: BusinessErrorCode; message: string };
 
 export const UNSUPPORTED_APPLICATION_FIELDS = [
   'googleBusinessListing',
@@ -299,4 +303,92 @@ export async function updateBusinessApplication(
   application: Omit<BusinessApplication, 'submittedAt'>,
 ): Promise<BusinessSubmissionResult> {
   return submitBusinessApplication(application);
+}
+
+/**
+ * Persists one-time profile completion celebration acknowledgement for the owner's business.
+ * Idempotent when already set (returns existing timestamp).
+ */
+export async function acknowledgeProfileCompletionCelebration(
+  businessId: string,
+): Promise<AcknowledgeProfileCompletionCelebrationResult> {
+  const trimmedId = businessId.trim();
+  if (!trimmedId) {
+    return { ok: false, code: 'unexpected', message: 'Business not found.' };
+  }
+
+  try {
+    const session = await getCurrentSession();
+    const userId = session?.user?.id;
+    if (!userId) {
+      return {
+        ok: false,
+        code: 'unauthenticated',
+        message: 'Please sign in again to save your progress.',
+      };
+    }
+
+    const celebratedAt = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('businesses')
+      .update({ profile_completion_celebrated_at: celebratedAt })
+      .eq('id', trimmedId)
+      .eq('owner_user_id', userId)
+      .is('profile_completion_celebrated_at', null)
+      .select('profile_completion_celebrated_at')
+      .maybeSingle();
+
+    if (error) {
+      logDevError('acknowledgeProfileCompletionCelebration', error);
+      const code = isNetworkError(error) ? 'network' : mapPostgrestError(error);
+      return {
+        ok: false,
+        code,
+        message: 'Unable to save profile completion status.',
+      };
+    }
+
+    if (data?.profile_completion_celebrated_at) {
+      return {
+        ok: true,
+        celebratedAt: String(data.profile_completion_celebrated_at),
+      };
+    }
+
+    const { data: existing, error: readError } = await supabase
+      .from('businesses')
+      .select('profile_completion_celebrated_at')
+      .eq('id', trimmedId)
+      .eq('owner_user_id', userId)
+      .maybeSingle();
+
+    if (readError) {
+      logDevError('acknowledgeProfileCompletionCelebration.readback', readError);
+      const code = isNetworkError(readError) ? 'network' : mapPostgrestError(readError);
+      return {
+        ok: false,
+        code,
+        message: 'Unable to save profile completion status.',
+      };
+    }
+
+    const existingAt = existing?.profile_completion_celebrated_at;
+    if (existingAt) {
+      return { ok: true, celebratedAt: String(existingAt) };
+    }
+
+    return {
+      ok: false,
+      code: 'unexpected',
+      message: 'Unable to save profile completion status.',
+    };
+  } catch (error) {
+    logDevError('acknowledgeProfileCompletionCelebration', error);
+    return {
+      ok: false,
+      code: isNetworkError(error) ? 'network' : 'unexpected',
+      message: 'Unable to save profile completion status.',
+    };
+  }
 }

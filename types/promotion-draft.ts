@@ -3,7 +3,9 @@ export type PromotionDraft = {
   title: string;
   description: string;
   startDate: string | null;
+  startTime: string | null;
   endDate: string | null;
+  endTime: string | null;
   promotionCode: string;
   redemptionInstructions: string;
   termsAndConditions: string;
@@ -16,7 +18,9 @@ export type PromotionFormErrors = Partial<
     | 'title'
     | 'description'
     | 'startDate'
+    | 'startTime'
     | 'endDate'
+    | 'endTime'
     | 'promotionCode'
     | 'redemptionInstructions'
     | 'termsAndConditions',
@@ -29,7 +33,9 @@ export const EMPTY_PROMOTION_DRAFT: PromotionDraft = {
   title: '',
   description: '',
   startDate: null,
+  startTime: null,
   endDate: null,
+  endTime: null,
   promotionCode: '',
   redemptionInstructions: '',
   termsAndConditions: '',

@@ -16,7 +16,6 @@ import {
   getCurrentUserProfile,
   resolveVerificationStatus,
   submitBusinessApplication as submitBusinessApplicationToSupabase,
-  UNSUPPORTED_APPLICATION_FIELDS,
 } from '@/services/businesses';
 import type { AccountMode, BusinessApplication, VerificationStatus } from '@/types/account-mode';
 import type { BusinessRow } from '@/types/supabase-business';
@@ -149,7 +148,9 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
         nextAccountType,
         nextVerificationStatus,
       );
-      setActiveAppMode(canUseBusiness && storedAppMode === 'business' ? 'business' : 'explorer');
+      const nextActiveAppMode =
+        canUseBusiness && storedAppMode === 'business' ? 'business' : 'explorer';
+      setActiveAppMode(nextActiveAppMode);
     } finally {
       setIsReady(true);
     }
@@ -245,13 +246,6 @@ export function AccountModeProvider({ children }: { children: ReactNode }) {
       await saveBusinessApplication(currentUserId, payload);
       await saveVerificationStatus(currentUserId, 'pending');
       await refreshAccountMode();
-
-      if (__DEV__) {
-        console.info(
-          '[business-application] Fields not stored in Supabase yet:',
-          UNSUPPORTED_APPLICATION_FIELDS.join(', '),
-        );
-      }
 
       return true;
     },

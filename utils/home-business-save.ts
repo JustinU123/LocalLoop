@@ -30,6 +30,7 @@ export function homeBusinessToSavedBusiness(business: HomeBusiness): Business {
     videos: [],
     posts: [],
     promotions: [],
+    events: [],
     menu: [],
     reviews: [],
   };

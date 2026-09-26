@@ -83,11 +83,11 @@ function createStyles(theme: AppThemeTokens) {
       height: '100%',
     },
     scrim: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: theme.imageScrimSubtle,
     },
     playButtonWrap: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -105,7 +105,7 @@ function createStyles(theme: AppThemeTokens) {
       marginLeft: 4,
     },
     playingState: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       alignItems: 'center',
       justifyContent: 'center',
       gap: 10,

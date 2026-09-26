@@ -1,31 +1,27 @@
 import { View } from 'react-native';
 
 import { useAppTheme } from '@/contexts/app-theme-context';
-import type { MapBusiness } from '@/data/map-businesses';
+import type { MapPin } from '@/types/map-pin';
+import { getMapMarkerColors } from '@/utils/map-marker-colors';
 
 const MARKER_HIT_SIZE = 44;
 const MARKER_DOT_SIZE = 18;
 const MARKER_DOT_SELECTED_SIZE = 22;
 
 type MapBusinessMarkerProps = {
-  business: MapBusiness;
+  pin: MapPin;
   selected?: boolean;
 };
 
-export function MapBusinessMarker({ business, selected = false }: MapBusinessMarkerProps) {
+export function MapBusinessMarker({ pin, selected = false }: MapBusinessMarkerProps) {
   const { theme } = useAppTheme();
-
-  const fill = business.hasPromotion
-    ? theme.coral
-    : business.isLocalLoopMember
-      ? theme.emerald
-      : theme.textSecondary;
-
-  const ring = selected ? theme.text : business.hasPromotion ? theme.coral : theme.emerald;
+  const { fill, ring, showPromotionDot } = getMapMarkerColors(pin, theme, selected);
   const dotSize = selected ? MARKER_DOT_SELECTED_SIZE : MARKER_DOT_SIZE;
 
   return (
     <View
+      collapsable={false}
+      pointerEvents="none"
       style={{
         width: MARKER_HIT_SIZE,
         height: MARKER_HIT_SIZE,
@@ -46,7 +42,7 @@ export function MapBusinessMarker({ business, selected = false }: MapBusinessMar
           shadowRadius: selected ? 6 : 4,
         }}
       />
-      {business.hasPromotion ? (
+      {showPromotionDot ? (
         <View
           style={{
             position: 'absolute',

@@ -1,8 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +20,8 @@ import { EventImageField } from '@/components/business/event-image-field';
 import { FormFieldWithCounter } from '@/components/business/form-field-with-counter';
 import { OptionChipGroup } from '@/components/business/option-chip-group';
 import { TimeFormField } from '@/components/business/time-form-field';
+import { UnsavedChangesDiscardModal } from '@/components/business/unsaved-changes-discard-modal';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import {
   EVENT_AGE_OPTIONS,
@@ -37,11 +37,15 @@ import {
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import type { EventDraft } from '@/types/event-draft';
 import { parseIsoDate, todayStart } from '@/utils/date-time';
+import { getOwnerEventById } from '@/services/events';
 import {
   clearEventDraft,
+  beginEventEdit,
+  clearEventEditSession,
   createEmptyEventDraft,
   getBusinessAddressLabel,
   getEventDraft,
+  getEventEditSession,
   isEventFormEmpty,
   setEventDraft,
   validateEventForm,
@@ -51,13 +55,74 @@ export default function BusinessCreateEventScreen() {
   useVerifiedBusinessEventGuard();
   const canCreate = useCanCreateBusinessContent();
   const styles = useThemedStyles(createStyles);
-  const navigation = useNavigation();
   const { businessApplication } = useAccountMode();
+  const { editId: editIdParam } = useLocalSearchParams<{ editId?: string | string[] }>();
+  const editId = Array.isArray(editIdParam) ? (editIdParam[0] ?? '') : (editIdParam ?? '');
+  const isEditing = Boolean(editId);
+
   const [form, setForm] = useState<EventDraft>(() => getEventDraft() ?? createEmptyEventDraft());
+  const [loadingEdit, setLoadingEdit] = useState(isEditing);
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isEditing) {
+      clearEventEditSession();
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadForEdit() {
+      const session = getEventEditSession();
+      if (session?.eventId === editId && getEventDraft()) {
+        const draft = getEventDraft()!;
+        if (!cancelled) {
+          setForm(draft);
+          setInitialSnapshot(JSON.stringify(draft));
+          setLoadingEdit(false);
+        }
+        return;
+      }
+
+      const result = await getOwnerEventById(editId);
+      if (cancelled) {
+        return;
+      }
+
+      if (!result.ok) {
+        setEditLoadError(result.message);
+        setLoadingEdit(false);
+        return;
+      }
+
+      if (result.event.manageSection === 'ended') {
+        setEditLoadError('Ended events cannot be edited.');
+        setLoadingEdit(false);
+        return;
+      }
+
+      beginEventEdit(result.event.id, result.event.draft, result.event.imageUrl);
+      setForm(result.event.draft);
+      setInitialSnapshot(JSON.stringify(result.event.draft));
+      setLoadingEdit(false);
+    }
+
+    void loadForEdit();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, isEditing]);
 
   const businessAddress = getBusinessAddressLabel(businessApplication);
   const { valid, errors } = useMemo(() => validateEventForm(form), [form]);
-  const isDirty = useMemo(() => !isEventFormEmpty(form), [form]);
+  const isDirty = useMemo(() => {
+    if (isEditing && initialSnapshot) {
+      return JSON.stringify(form) !== initialSnapshot;
+    }
+    return !isEventFormEmpty(form);
+  }, [form, initialSnapshot, isEditing]);
   const today = useMemo(() => todayStart(), []);
   const endDateMinimum = useMemo(() => {
     const eventDate = parseIsoDate(form.eventDate);
@@ -67,51 +132,15 @@ export default function BusinessCreateEventScreen() {
     return today;
   }, [form.eventDate, today]);
 
+  const { attemptBack, discardModalProps } = useUnsavedChangesGuard({
+    isDirty,
+    title: 'Discard this event?',
+    onDiscard: clearEventDraft,
+  });
+
   const updateField = <K extends keyof EventDraft>(key: K, value: EventDraft[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
-
-  const attemptBack = useCallback(() => {
-    if (!isDirty) {
-      router.back();
-      return;
-    }
-
-    Alert.alert('Discard this event?', undefined, [
-      { text: 'Keep Editing', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => {
-          clearEventDraft();
-          router.back();
-        },
-      },
-    ]);
-  }, [isDirty]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (!isDirty) {
-        return;
-      }
-
-      event.preventDefault();
-      Alert.alert('Discard this event?', undefined, [
-        { text: 'Keep Editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            clearEventDraft();
-            navigation.dispatch(event.data.action);
-          },
-        },
-      ]);
-    });
-
-    return unsubscribe;
-  }, [navigation, isDirty]);
 
   const handleContinue = () => {
     if (!valid || !canCreate) {
@@ -119,20 +148,35 @@ export default function BusinessCreateEventScreen() {
     }
 
     setEventDraft(form);
+    setEventDraft(form);
     router.push('/business-event-preview');
   };
+
+  const screenTitle = isEditing ? 'Edit Event' : 'Create Event';
 
   if (!canCreate) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <AccountScreenHeader title="Create Event" onBackPress={attemptBack} />
+        <AccountScreenHeader title={screenTitle} onBackPress={attemptBack} />
+        <UnsavedChangesDiscardModal {...discardModalProps} />
+      </SafeAreaView>
+    );
+  }
+
+  if (editLoadError) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <AccountScreenHeader title={screenTitle} onBackPress={() => router.back()} />
+        <View style={styles.errorWrap}>
+          <Text style={styles.intro}>{editLoadError}</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <AccountScreenHeader title="Create Event" onBackPress={attemptBack} />
+      <AccountScreenHeader title={screenTitle} onBackPress={attemptBack} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -142,10 +186,15 @@ export default function BusinessCreateEventScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={Keyboard.dismiss}>
-          <Text style={styles.intro}>
-            Share an upcoming event with nearby LocalLoop customers. Publishing will be connected in
-            a future update.
-          </Text>
+          {loadingEdit ? (
+            <Text style={styles.intro}>Loading event…</Text>
+          ) : (
+            <Text style={styles.intro}>
+              {isEditing
+                ? 'Update your event details. Changes apply to the same event—nothing new is created.'
+                : 'Share an upcoming event with nearby LocalLoop customers.'}
+            </Text>
+          )}
 
           <EventImageField
             imageUri={form.imageUri}
@@ -415,9 +464,14 @@ export default function BusinessCreateEventScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <PrimaryButton label="Continue" onPress={handleContinue} disabled={!valid} />
+          <PrimaryButton
+            label={isEditing ? 'Review Changes' : 'Continue'}
+            onPress={handleContinue}
+            disabled={!valid || loadingEdit}
+          />
         </View>
       </KeyboardAvoidingView>
+      <UnsavedChangesDiscardModal {...discardModalProps} />
     </SafeAreaView>
   );
 }
@@ -447,6 +501,10 @@ function createStyles(theme: AppThemeTokens) {
       fontSize: 15,
       lineHeight: 22,
       fontFamily: BrandFonts.regular,
+    },
+    errorWrap: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
     },
     toggleRow: {
       flexDirection: 'row',

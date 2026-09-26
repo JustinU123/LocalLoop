@@ -1,9 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 
+import type { PublicProfileTab } from '@/types/public-profile-tab';
+
 type OpenBusinessProfileContext = {
   postId?: string;
   source?: string;
+  tab?: PublicProfileTab;
 };
 
 export function openBusinessProfile(
@@ -17,12 +20,16 @@ export function openBusinessProfile(
       businessId: trimmedBusinessId,
       postId: context?.postId,
       source: context?.source,
+      tab: context?.tab,
     });
   }
 
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   router.push({
     pathname: '/business/[id]',
-    params: { id: trimmedBusinessId },
+    params: {
+      id: trimmedBusinessId,
+      ...(context?.tab ? { tab: context.tab } : {}),
+    },
   });
 }

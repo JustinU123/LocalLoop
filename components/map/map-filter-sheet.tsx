@@ -25,6 +25,8 @@ function Chip({
   selected,
   onPress,
   accent = 'emerald',
+  showCheckmark = false,
+  immutable = false,
   styles,
   theme,
 }: {
@@ -32,20 +34,36 @@ function Chip({
   selected: boolean;
   onPress: () => void;
   accent?: 'emerald' | 'coral';
+  showCheckmark?: boolean;
+  immutable?: boolean;
   styles: ReturnType<typeof createStyles>;
   theme: AppThemeTokens;
 }) {
   const color = accent === 'coral' ? theme.coral : theme.emerald;
+  const chipStyle = [
+    styles.chip,
+    styles.chipInner,
+    selected && { backgroundColor: `${color}22`, borderColor: color },
+  ];
+
+  const labelNode = (
+    <>
+      {showCheckmark && selected ? (
+        <Ionicons name="checkmark" size={14} color={color} />
+      ) : null}
+      <Text style={[styles.chipLabel, selected && { color }]}>{label}</Text>
+    </>
+  );
+
+  if (immutable) {
+    return <View style={chipStyle}>{labelNode}</View>;
+  }
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        selected && { backgroundColor: `${color}22`, borderColor: color },
-        pressed && styles.chipPressed,
-      ]}>
-      <Text style={[styles.chipLabel, selected && { color }]}>{label}</Text>
+      style={({ pressed }) => [...chipStyle, pressed && styles.chipPressed]}>
+      {labelNode}
     </Pressable>
   );
 }
@@ -57,6 +75,10 @@ export function MapFilterSheet({ visible, filters, onChange, onClose }: MapFilte
   const update = (patch: Partial<MapFilters>) => {
     Haptics.selectionAsync();
     onChange({ ...filters, ...patch });
+  };
+
+  const toggleIncludeChains = () => {
+    update({ includeChains: !filters.includeChains });
   };
 
   return (
@@ -73,22 +95,30 @@ export function MapFilterSheet({ visible, filters, onChange, onClose }: MapFilte
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
           <Text style={styles.sectionLabel}>Business Type</Text>
-          <View style={styles.chipRow}>
-            <Chip
-              label="Local Businesses"
-              selected={!filters.includeChains}
-              onPress={() => update({ includeChains: false })}
-              styles={styles}
-              theme={theme}
-            />
-            <Chip
-              label="Include National Chains"
-              selected={filters.includeChains}
-              onPress={() => update({ includeChains: true })}
-              accent="coral"
-              styles={styles}
-              theme={theme}
-            />
+          <View style={styles.businessTypeBlock}>
+            <View style={styles.chipRow}>
+              <Chip
+                label="Local Businesses"
+                selected
+                showCheckmark
+                immutable
+                onPress={() => {}}
+                styles={styles}
+                theme={theme}
+              />
+            </View>
+            <Pressable
+              onPress={toggleIncludeChains}
+              style={({ pressed }) => [styles.chainCheckboxRow, pressed && styles.chainCheckboxRowPressed]}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: filters.includeChains }}>
+              <Ionicons
+                name={filters.includeChains ? 'checkbox' : 'square-outline'}
+                size={20}
+                color={filters.includeChains ? theme.emerald : theme.textSecondary}
+              />
+              <Text style={styles.chainCheckboxLabel}>Include National Food Chains</Text>
+            </Pressable>
           </View>
 
           <Text style={styles.sectionLabel}>Categories</Text>
@@ -218,6 +248,11 @@ function createStyles(theme: AppThemeTokens) {
       paddingHorizontal: 12,
       paddingVertical: 8,
     },
+    chipInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
     chipPressed: {
       opacity: 0.9,
     },
@@ -225,6 +260,23 @@ function createStyles(theme: AppThemeTokens) {
       color: theme.textSecondary,
       fontSize: 13,
       fontFamily: BrandFonts.semiBold,
+    },
+    businessTypeBlock: {
+      gap: 8,
+    },
+    chainCheckboxRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 2,
+    },
+    chainCheckboxRowPressed: {
+      opacity: 0.92,
+    },
+    chainCheckboxLabel: {
+      color: theme.text,
+      fontSize: 14,
+      fontFamily: BrandFonts.medium,
     },
     toggleList: {
       gap: 8,

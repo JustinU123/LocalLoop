@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { User } from '@supabase/supabase-js';
 import * as Haptics from 'expo-haptics';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, usePathname, useSegments } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -169,6 +169,8 @@ function AppearanceOption({
 }
 
 export default function SettingsScreen() {
+  const pathname = usePathname();
+  const segments = useSegments();
   const { theme, preference, setPreference } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { unreadCount } = useNotifications();
@@ -178,9 +180,12 @@ export default function SettingsScreen() {
     verificationStatusLabel,
     currentModeLabel,
     canAccessBusinessDashboard,
+    verificationStatus,
     refreshAccountMode,
     isReady: accountModeReady,
   } = useAccountMode();
+  const canEditBusinessProfile =
+    canAccessBusinessDashboard && verificationStatus === 'verified';
   const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
@@ -198,9 +203,12 @@ export default function SettingsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (__DEV__) {
+        console.info('[settings] focus', { pathname, segments });
+      }
       void refreshAccountMode();
       void loadUser();
-    }, [refreshAccountMode, loadUser]),
+    }, [refreshAccountMode, loadUser, pathname, segments]),
   );
 
   const handleSelectAppearance = async (next: ThemePreference) => {
@@ -257,10 +265,34 @@ export default function SettingsScreen() {
               <Text style={styles.accountTypeText}>{profileExperienceLabel}</Text>
             </View>
           ) : null}
-          <Pressable disabled style={styles.editProfileButton}>
-            <Ionicons name="create-outline" size={18} color={theme.textSecondary} />
-            <Text style={styles.editProfileText}>Edit Profile</Text>
-            <Text style={styles.editProfileBadge}>Coming soon</Text>
+          <Pressable
+            disabled={!canEditBusinessProfile}
+            onPress={() => {
+              if (!canEditBusinessProfile) {
+                return;
+              }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/business-edit-profile');
+            }}
+            style={[
+              styles.editProfileButton,
+              !canEditBusinessProfile && styles.editProfileButtonDisabled,
+            ]}>
+            <Ionicons
+              name="create-outline"
+              size={18}
+              color={canEditBusinessProfile ? theme.emerald : theme.textSecondary}
+            />
+            <Text
+              style={[
+                styles.editProfileText,
+                canEditBusinessProfile && styles.editProfileTextActive,
+              ]}>
+              Edit Business Profile
+            </Text>
+            {!canEditBusinessProfile ? (
+              <Text style={styles.editProfileBadge}>Verify business</Text>
+            ) : null}
           </Pressable>
         </View>
 
@@ -553,18 +585,25 @@ function createStyles(theme: AppThemeTokens) {
       flexDirection: 'row' as const,
       alignItems: 'center' as const,
       gap: 8,
-      backgroundColor: theme.surfaceElevated,
+      backgroundColor: theme.emeraldGlow,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.emerald,
       borderRadius: 14,
       paddingHorizontal: 14,
       paddingVertical: 10,
+    },
+    editProfileButtonDisabled: {
+      backgroundColor: theme.surfaceElevated,
+      borderColor: theme.border,
       opacity: 0.72,
     },
     editProfileText: {
       color: theme.textSecondary,
       fontSize: 14,
       fontFamily: BrandFonts.semiBold,
+    },
+    editProfileTextActive: {
+      color: theme.emerald,
     },
     editProfileBadge: {
       color: theme.textSecondary,

@@ -119,6 +119,7 @@ function RootNavigation() {
         <Stack.Screen name="about" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="map" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business/[id]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="post/[id]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="business/review/[businessId]" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>

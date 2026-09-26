@@ -1,8 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +21,8 @@ import { ItemVariationsField } from '@/components/business/item-variations-field
 import { MultiSelectChipGroup } from '@/components/business/multi-select-chip-group';
 import { OptionChipGroup } from '@/components/business/option-chip-group';
 import { ProductItemImageField } from '@/components/business/product-item-image-field';
+import { UnsavedChangesDiscardModal } from '@/components/business/unsaved-changes-discard-modal';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import {
   AVAILABILITY_OPTIONS,
@@ -41,12 +41,16 @@ import {
   useVerifiedBusinessProductItemGuard,
 } from '@/hooks/use-verified-business-create-guard';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { businessMenuItemToProductItemDraft, getOwnerMenuItemById } from '@/services/menuItems';
 import type { ProductItemDraft, ProductItemType } from '@/types/product-item-draft';
 import { parseIsoDate, serializeIsoDate, todayStart } from '@/utils/date-time';
 import {
+  beginMenuItemEdit,
+  clearMenuItemEditSession,
   clearProductItemDraft,
   createEmptyProductItemDraft,
   getItemNameLabel,
+  getMenuItemEditSession,
   getProductItemDraft,
   isProductItemFormEmpty,
   setProductItemDraft,
@@ -57,19 +61,84 @@ export default function BusinessCreateProductItemScreen() {
   useVerifiedBusinessProductItemGuard();
   const canCreate = useCanCreateBusinessContent();
   const styles = useThemedStyles(createStyles);
-  const navigation = useNavigation();
+  const { editId: editIdParam } = useLocalSearchParams<{ editId?: string | string[] }>();
+  const editId = Array.isArray(editIdParam) ? (editIdParam[0] ?? '') : (editIdParam ?? '');
+  const isEditing = Boolean(editId);
+
   const [form, setForm] = useState<ProductItemDraft>(
     () => getProductItemDraft() ?? createEmptyProductItemDraft(),
   );
+  const [loadingEdit, setLoadingEdit] = useState(isEditing);
+  const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  const [initialSnapshot, setInitialSnapshot] = useState<string | null>(null);
 
   const { valid, errors } = useMemo(() => validateProductItemForm(form), [form]);
-  const isDirty = useMemo(() => !isProductItemFormEmpty(form), [form]);
+  const isDirty = useMemo(() => {
+    if (isEditing && initialSnapshot) {
+      return JSON.stringify(form) !== initialSnapshot;
+    }
+    return !isProductItemFormEmpty(form);
+  }, [form, initialSnapshot, isEditing]);
+
+  const { attemptBack, discardModalProps } = useUnsavedChangesGuard({
+    isDirty,
+    title: 'Discard this item?',
+    onDiscard: clearProductItemDraft,
+  });
+
   const today = useMemo(() => todayStart(), []);
 
   const categoryOptions = useMemo(() => {
     const categories = form.itemType === 'product' ? PRODUCT_CATEGORIES : MENU_ITEM_CATEGORIES;
     return categories.map((category) => ({ id: category, label: category }));
   }, [form.itemType]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      clearMenuItemEditSession();
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadForEdit() {
+      const session = getMenuItemEditSession();
+      if (session?.menuItemId === editId && getProductItemDraft()) {
+        const draft = getProductItemDraft()!;
+        if (!cancelled) {
+          setForm(draft);
+          setInitialSnapshot(JSON.stringify(draft));
+          setLoadingEdit(false);
+        }
+        return;
+      }
+
+      const result = await getOwnerMenuItemById(editId);
+      if (cancelled) {
+        return;
+      }
+
+      if (!result.ok) {
+        setEditLoadError(result.message);
+        setLoadingEdit(false);
+        return;
+      }
+
+      const draft = businessMenuItemToProductItemDraft(result.item);
+      beginMenuItemEdit(result.item.id, draft, result.item.imageUrl);
+      setForm(draft);
+      setInitialSnapshot(JSON.stringify(draft));
+      setLoadingEdit(false);
+    }
+
+    void loadForEdit();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, isEditing]);
+
+  const screenTitle = isEditing ? 'Edit Menu Item' : 'New Product or Menu Item';
 
   const limitedTimeEndMinimum = useMemo(() => {
     const startDate = parseIsoDate(form.limitedTimeStartDate);
@@ -114,48 +183,6 @@ export default function BusinessCreateProductItemScreen() {
     });
   };
 
-  const attemptBack = useCallback(() => {
-    if (!isDirty) {
-      router.back();
-      return;
-    }
-
-    Alert.alert('Discard this item?', undefined, [
-      { text: 'Keep Editing', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => {
-          clearProductItemDraft();
-          router.back();
-        },
-      },
-    ]);
-  }, [isDirty]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (!isDirty) {
-        return;
-      }
-
-      event.preventDefault();
-      Alert.alert('Discard this item?', undefined, [
-        { text: 'Keep Editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            clearProductItemDraft();
-            navigation.dispatch(event.data.action);
-          },
-        },
-      ]);
-    });
-
-    return unsubscribe;
-  }, [navigation, isDirty]);
-
   const handleContinue = () => {
     if (!valid || !canCreate) {
       return;
@@ -168,14 +195,39 @@ export default function BusinessCreateProductItemScreen() {
   if (!canCreate) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <AccountScreenHeader title="New Product or Menu Item" onBackPress={attemptBack} />
+        <AccountScreenHeader title={screenTitle} onBackPress={attemptBack} />
+        <UnsavedChangesDiscardModal {...discardModalProps} />
+      </SafeAreaView>
+    );
+  }
+
+  if (isEditing && loadingEdit) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <AccountScreenHeader title={screenTitle} onBackPress={attemptBack} />
+        <View style={styles.loadingEdit}>
+          <Text style={styles.loadingEditText}>Loading item…</Text>
+        </View>
+        <UnsavedChangesDiscardModal {...discardModalProps} />
+      </SafeAreaView>
+    );
+  }
+
+  if (isEditing && editLoadError) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <AccountScreenHeader title={screenTitle} onBackPress={attemptBack} />
+        <View style={styles.loadingEdit}>
+          <Text style={styles.loadingEditText}>{editLoadError}</Text>
+        </View>
+        <UnsavedChangesDiscardModal {...discardModalProps} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <AccountScreenHeader title="New Product or Menu Item" onBackPress={attemptBack} />
+      <AccountScreenHeader title={screenTitle} onBackPress={attemptBack} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -186,16 +238,19 @@ export default function BusinessCreateProductItemScreen() {
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={Keyboard.dismiss}>
           <Text style={styles.intro}>
-            Highlight a new product or menu item for your business profile. Publishing will be
-            connected in a future update.
+            {isEditing
+              ? 'Update this menu item. Review your changes on the next screen before saving.'
+              : 'Highlight a new product or menu item for your business profile. Menu items publish to your profile; product publishing is not connected yet.'}
           </Text>
 
-          <OptionChipGroup
-            label="What are you adding?"
-            options={ITEM_TYPE_OPTIONS}
-            value={form.itemType}
-            onChange={handleItemTypeChange}
-          />
+          {!isEditing ? (
+            <OptionChipGroup
+              label="What are you adding?"
+              options={ITEM_TYPE_OPTIONS}
+              value={form.itemType}
+              onChange={handleItemTypeChange}
+            />
+          ) : null}
 
           <ProductItemImageField
             imageUri={form.imageUri}
@@ -441,9 +496,14 @@ export default function BusinessCreateProductItemScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <PrimaryButton label="Continue" onPress={handleContinue} disabled={!valid} />
+          <PrimaryButton
+            label={isEditing ? 'Review Changes' : 'Continue'}
+            onPress={handleContinue}
+            disabled={!valid}
+          />
         </View>
       </KeyboardAvoidingView>
+      <UnsavedChangesDiscardModal {...discardModalProps} />
     </SafeAreaView>
   );
 }
@@ -533,6 +593,19 @@ function createStyles(theme: AppThemeTokens) {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: theme.border,
       backgroundColor: theme.bg,
+    },
+    loadingEdit: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+    },
+    loadingEditText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'center',
     },
   });
 }

@@ -1,16 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
+  Alert,
   FlatList,
-  Linking,
   ListRenderItem,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -19,86 +17,83 @@ import {
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import {
+  PublicProfileAnnouncementPostPreview,
+  PublicProfilePhotoPostPreview,
+} from '@/components/business/public-profile-post-preview';
+import { EventPreviewCard } from '@/components/business/event-preview-card';
+import { ActivePromotionProfileCard } from '@/components/promotions/active-promotion-profile-card';
+import { MenuSectionsList } from '@/components/business/menu-sections-list';
+import {
+  PublicProfileHeader,
+  type PublicProfilePrimaryCta,
+} from '@/components/business/public-profile-header';
+import { PublicProfileReviewsPanel } from '@/components/business/public-profile-reviews-panel';
+import { PublicProfileReviewsPlaceholder } from '@/components/business/public-profile-reviews-placeholder';
+import { PublicProfileTabEmpty } from '@/components/business/public-profile-tab-empty';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
+import { useAccountMode } from '@/contexts/account-mode-context';
 import { useAppTheme } from '@/contexts/app-theme-context';
+import { useFollowedBusinesses } from '@/contexts/followed-businesses-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
+import { usePostEngagement } from '@/hooks/use-post-engagement';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { getBusinessFollowerCount } from '@/services/businessFollows';
+import {
+  deleteBusinessReview,
+  getBusinessReviewsBundle,
+} from '@/services/businessReviews';
 import { getPublicBusinessProfile } from '@/services/publicBusinessProfile';
-import { getBusinessInitials } from '@/utils/business-initials';
+import {
+  getActivePromotionsForBusiness,
+  getOwnerScheduledPromotionsForBusiness,
+  mergeOwnerProfilePromotions,
+} from '@/services/promotions';
+import { formatScheduledPromotionLiveLabel } from '@/utils/promotion-scheduled-live-label';
+import type { BusinessReviewSummary, PublicBusinessReview } from '@/types/supabase-review';
+import { getCurrentSession } from '@/utils/auth';
+import { buildReviewSummaryFromRatings, createEmptyReviewSummary } from '@/utils/review-stats';
+import { PUBLIC_PROFILE_TABS, type PublicProfileTab } from '@/types/public-profile-tab';
 import {
   Business,
   BusinessPromotionItem,
   BusinessReview,
-  BusinessVideo,
-  getAppleMapsDirectionsUrl,
   getBusinessById,
 } from '@/data/businesses';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const VIDEO_HEIGHT = Math.min(420, SCREEN_HEIGHT * 0.5);
-const PHOTO_GAP = 10;
-const PHOTO_WIDTH = (SCREEN_WIDTH - 72 - PHOTO_GAP) / 2;
-
-type ProfileTab = 'posts' | 'promotions' | 'reviews' | 'photos' | 'videos' | 'about';
-
-const TABS: { id: ProfileTab; label: string }[] = [
-  { id: 'posts', label: 'Posts' },
-  { id: 'promotions', label: 'Promotions' },
-  { id: 'reviews', label: 'Reviews' },
-  { id: 'photos', label: 'Photos' },
-  { id: 'videos', label: 'Videos' },
-  { id: 'about', label: 'About' },
-];
-
-function formatFollowerCount(count: number): string {
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K`;
-  }
-  return `${count}`;
-}
+import type { EventDraft } from '@/types/event-draft';
 
 type TabRow =
-  | { key: string; kind: 'video-feed' }
-  | { key: string; kind: 'photo'; uri: string; index: number }
   | { key: string; kind: 'post'; postId: string; image: string; caption: string; postedAt: string }
-  | { key: string; kind: 'promotion'; promotion: BusinessPromotionItem }
+  | {
+      key: string;
+      kind: 'announcement';
+      postId: string;
+      caption: string;
+      postedAt: string;
+    }
+  | { key: string; kind: 'event'; eventId: string; draft: EventDraft }
   | { key: string; kind: 'review'; review: BusinessReview }
+  | { key: string; kind: 'menu' }
+  | { key: string; kind: 'menu-empty' }
+  | { key: string; kind: 'reviews-empty' }
+  | { key: string; kind: 'reviews-panel' }
+  | { key: string; kind: 'posts-empty' }
+  | { key: string; kind: 'events-empty' }
+  | { key: string; kind: 'promotion'; promotion: BusinessPromotionItem }
+  | { key: string; kind: 'promotions-empty' }
   | { key: string; kind: 'about' };
-
-function CompactActionButton({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  const styles = useThemedStyles(createStyles);
-  const { theme } = useAppTheme();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.compactAction, pressed && styles.compactActionPressed]}>
-      <View style={styles.compactActionCircle}>
-        <Ionicons name={icon} size={20} color={theme.onEmerald} />
-      </View>
-      <Text style={styles.compactActionLabel}>{label}</Text>
-    </Pressable>
-  );
-}
 
 function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
   const styles = useThemedStyles(createStyles);
   const { theme } = useAppTheme();
+  const wholeStars = Math.min(5, Math.max(0, Math.round(rating)));
 
   return (
     <View style={styles.starRow}>
       {Array.from({ length: 5 }).map((_, index) => (
         <Ionicons
           key={index}
-          name={index < Math.floor(rating) ? 'star' : index < rating ? 'star-half' : 'star-outline'}
+          name={index < wholeStars ? 'star' : 'star-outline'}
           size={size}
           color={theme.star}
         />
@@ -107,78 +102,66 @@ function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
   );
 }
 
-function VideoFeed({ videos }: { videos: BusinessVideo[] }) {
-  const styles = useThemedStyles(createStyles);
-  const { theme } = useAppTheme();
+type ProfileSource = 'mock' | 'supabase';
 
-  return (
-    <View style={styles.videoFeedContainer}>
-      <ScrollView
-        pagingEnabled
-        snapToInterval={VIDEO_HEIGHT}
-        decelerationRate="fast"
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled>
-        {videos.map((item) => (
-          <View key={item.id} style={[styles.videoItem, { height: VIDEO_HEIGHT }]}>
-            <Image source={{ uri: item.thumbnail }} style={styles.videoImage} contentFit="cover" transition={250} />
-            <View style={styles.videoOverlay} />
-            <View style={styles.videoPlayWrap}>
-              <View style={styles.videoPlayButton}>
-                <Ionicons name="play" size={28} color={theme.onImage} />
-              </View>
-            </View>
-            <View style={styles.videoSideActions}>
-              <View style={styles.videoSideAction}>
-                <Ionicons name="heart" size={24} color={theme.onImage} />
-                <Text style={styles.videoSideText}>{item.likes}</Text>
-              </View>
-              <View style={styles.videoSideAction}>
-                <Ionicons name="chatbubble" size={24} color={theme.onImage} />
-                <Text style={styles.videoSideText}>86</Text>
-              </View>
-              <View style={styles.videoSideAction}>
-                <Ionicons name="share-social" size={24} color={theme.onImage} />
-              </View>
-            </View>
-            <View style={styles.videoFooter}>
-              <Text style={styles.videoCaption}>{item.caption}</Text>
-              <Text style={styles.videoViews}>{item.views} views</Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-function buildTabRows(tab: ProfileTab, business: Business): TabRow[] {
+function buildTabRows(tab: PublicProfileTab, business: Business, profileSource: ProfileSource): TabRow[] {
   switch (tab) {
-    case 'posts':
-      return business.posts.map((post) => ({
-        key: post.id,
-        kind: 'post' as const,
-        postId: post.id,
-        image: post.image,
-        caption: post.caption,
-        postedAt: post.postedAt,
+    case 'posts': {
+      if (business.posts.length === 0) {
+        return [{ key: 'posts-empty', kind: 'posts-empty' }];
+      }
+      return business.posts.map((post) => {
+        if (post.postType === 'announcement') {
+          return {
+            key: post.id,
+            kind: 'announcement' as const,
+            postId: post.id,
+            caption: post.caption,
+            postedAt: post.postedAt,
+          };
+        }
+
+        return {
+          key: post.id,
+          kind: 'post' as const,
+          postId: post.id,
+          image: post.image ?? '',
+          caption: post.caption,
+          postedAt: post.postedAt,
+        };
+      });
+    }
+    case 'menu':
+      if (business.menu.length === 0) {
+        return [{ key: 'menu-empty', kind: 'menu-empty' }];
+      }
+      return [{ key: 'menu', kind: 'menu' }];
+    case 'events':
+      if (business.events.length === 0) {
+        return [{ key: 'events-empty', kind: 'events-empty' }];
+      }
+      return business.events.map((event) => ({
+        key: event.id,
+        kind: 'event' as const,
+        eventId: event.id,
+        draft: event.draft,
       }));
     case 'promotions':
+      if (business.promotions.length === 0) {
+        return [{ key: 'promotions-empty', kind: 'promotions-empty' }];
+      }
       return business.promotions.map((promotion) => ({
         key: promotion.id,
         kind: 'promotion' as const,
         promotion,
       }));
-    case 'videos':
-      return [{ key: 'video-feed', kind: 'video-feed' }];
-    case 'photos':
-      return business.photos.map((uri, index) => ({
-        key: `photo-${index}`,
-        kind: 'photo' as const,
-        uri,
-        index,
-      }));
     case 'reviews':
+      if (profileSource === 'supabase') {
+        return [{ key: 'reviews-panel', kind: 'reviews-panel' }];
+      }
+      if (business.reviews.length === 0) {
+        return [{ key: 'reviews-empty', kind: 'reviews-empty' }];
+      }
       return business.reviews.map((review) => ({
         key: review.id,
         kind: 'review' as const,
@@ -191,200 +174,90 @@ function buildTabRows(tab: ProfileTab, business: Business): TabRow[] {
   }
 }
 
-type ProfileHeaderProps = {
-  business: Business;
-  insetsTop: number;
-  activeTab: ProfileTab;
-  following: boolean;
-  saved: boolean;
-  onTabChange: (tab: ProfileTab) => void;
-  onToggleFollow: () => void;
-  onToggleSave: () => void;
-  onShare: () => void;
-};
-
-function ProfileHeader({
-  business,
-  insetsTop,
-  activeTab,
-  following,
-  saved,
-  onTabChange,
-  onToggleFollow,
-  onToggleSave,
-  onShare,
-}: ProfileHeaderProps) {
-  const styles = useThemedStyles(createStyles);
-  const { theme } = useAppTheme();
-
-  return (
-    <View>
-      <View style={styles.heroWrap}>
-        {business.cover ? (
-          <Image source={{ uri: business.cover }} style={styles.heroImage} contentFit="cover" transition={300} />
-        ) : (
-          <View style={[styles.heroImage, styles.heroFallback]}>
-            <Text style={styles.heroFallbackText}>{getBusinessInitials(business.name)}</Text>
-          </View>
-        )}
-        <View style={styles.heroOverlay} />
-        <Pressable onPress={() => router.back()} style={[styles.backButton, { top: insetsTop + 8 }]}>
-          <Ionicons name="chevron-back" size={22} color={theme.onImage} />
-        </Pressable>
-      </View>
-
-      <Animated.View entering={FadeInDown.duration(400)} style={styles.profileCardTop}>
-        <View style={styles.logoWrap}>
-          {business.logo ? (
-            <Image source={{ uri: business.logo }} style={styles.logo} contentFit="cover" transition={300} />
-          ) : (
-            <View style={[styles.logo, styles.logoFallback]}>
-              <Text style={styles.logoFallbackText}>{getBusinessInitials(business.name)}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.nameRow}>
-          <Text style={styles.businessName}>{business.name}</Text>
-          {business.verified && (
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="checkmark-circle" size={16} color={theme.emerald} />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={styles.categoryLine}>{business.category}</Text>
-
-        {business.reviewCount > 0 ? (
-          <View style={styles.statsRow}>
-            <Ionicons name="star" size={14} color={theme.star} />
-            <Text style={styles.ratingText}>{business.rating.toFixed(1)}</Text>
-            <Text style={styles.reviewCount}>{business.reviewCount} reviews</Text>
-            {business.followerCount > 0 ? (
-              <>
-                <Text style={styles.dot}>·</Text>
-                <Text style={styles.followerCount}>
-                  {formatFollowerCount(business.followerCount)} followers
-                </Text>
-              </>
-            ) : null}
-          </View>
-        ) : null}
-
-        {business.about ? <Text style={styles.bio}>{business.about}</Text> : null}
-
-        {business.distance || business.hours ? (
-          <View style={styles.metaRow}>
-            {business.distance ? (
-              <>
-                <Text style={styles.distanceText}>{business.distance}</Text>
-                {business.hours ? <Text style={styles.dot}>·</Text> : null}
-              </>
-            ) : null}
-            {business.hours ? (
-              <View style={[styles.statusPill, business.isOpen ? styles.openPill : styles.closedPill]}>
-                <View style={[styles.statusDot, business.isOpen ? styles.openDot : styles.closedDot]} />
-                <Text style={styles.statusText}>{business.isOpen ? 'Open' : 'Closed'}</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        <View style={styles.ctaRow}>
-          <Pressable
-            onPress={onToggleFollow}
-            style={({ pressed }) => [
-              styles.followButton,
-              following && styles.followButtonActive,
-              pressed && styles.buttonPressed,
-            ]}>
-            <Text style={[styles.followButtonText, following && styles.followButtonTextActive]}>
-              {following ? 'Following' : 'Follow'}
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={onToggleSave}
-            style={({ pressed }) => [styles.saveProfileButton, pressed && styles.buttonPressed]}>
-            <Ionicons
-              name={saved ? 'bookmark' : 'bookmark-outline'}
-              size={20}
-              color={saved ? theme.emerald : theme.text}
-            />
-            <Text style={[styles.saveProfileText, saved && styles.saveProfileTextActive]}>
-              {saved ? 'Saved' : 'Save'}
-            </Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.compactActionsRow}>
-          <CompactActionButton
-            icon="navigate"
-            label="Directions"
-            onPress={() => {
-              if (business.latitude && business.longitude) {
-                Linking.openURL(getAppleMapsDirectionsUrl(business.latitude, business.longitude));
-              }
-            }}
-          />
-          <CompactActionButton
-            icon="call"
-            label="Call"
-            onPress={() => {
-              if (business.phone) {
-                Linking.openURL(`tel:${business.phone}`);
-              }
-            }}
-          />
-          <CompactActionButton
-            icon="globe-outline"
-            label="Website"
-            onPress={() => {
-              if (business.website) {
-                const url = business.website.startsWith('http')
-                  ? business.website
-                  : `https://${business.website}`;
-                Linking.openURL(url);
-              }
-            }}
-          />
-          <CompactActionButton icon="share-outline" label="Share" onPress={onShare} />
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsRow}>
-          {TABS.map((tab) => {
-            const selected = activeTab === tab.id;
-            return (
-              <Pressable
-                key={tab.id}
-                onPress={() => onTabChange(tab.id)}
-                style={[styles.tabChip, selected && styles.tabChipActive]}>
-                <Text style={[styles.tabChipText, selected && styles.tabChipTextActive]}>{tab.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </Animated.View>
-    </View>
-  );
-}
-
 export default function BusinessProfileScreen() {
   const styles = useThemedStyles(createStyles);
   const { theme } = useAppTheme();
-  const { id } = useLocalSearchParams<{ id: string | string[] }>();
+  const { id, tab: tabParam } = useLocalSearchParams<{ id: string | string[]; tab?: string | string[] }>();
   const insets = useSafeAreaInsets();
   const businessId = Array.isArray(id) ? (id[0] ?? '') : (id ?? '');
+  const routeTab = Array.isArray(tabParam) ? tabParam[0] : tabParam;
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
-  const [following, setFollowing] = useState(false);
+  const [activeTab, setActiveTab] = useState<PublicProfileTab>(() => {
+    if (routeTab && PUBLIC_PROFILE_TABS.some((entry) => entry.id === routeTab)) {
+      return routeTab as PublicProfileTab;
+    }
+    return 'posts';
+  });
+  const [profileSource, setProfileSource] = useState<ProfileSource | null>(null);
+  const [reviewSummary, setReviewSummary] = useState<BusinessReviewSummary>(createEmptyReviewSummary());
+  const [supabaseReviews, setSupabaseReviews] = useState<PublicBusinessReview[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null | undefined>(undefined);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [promotionTick, setPromotionTick] = useState(() => Date.now());
+  const { isFollowing, toggleFollow } = useFollowedBusinesses();
   const { isBusinessSaved, toggleBusinessSaved } = useSavedItems();
+  const { businessRecord } = useAccountMode();
   const saved = business ? isBusinessSaved(business.id) : false;
+
+  const refreshFollowerCount = useCallback(async (targetBusinessId: string) => {
+    const result = await getBusinessFollowerCount(targetBusinessId);
+    if (result.ok) {
+      setFollowerCount(result.count);
+    } else if (__DEV__) {
+      console.error('[business-profile] follower count load failed', result.message);
+    }
+  }, []);
+
+  const refreshProfilePromotions = useCallback(
+    async (targetBusinessId: string, now = new Date()) => {
+      const result = await getActivePromotionsForBusiness(targetBusinessId, now);
+      if (!result.ok) {
+        if (__DEV__) {
+          console.error('[business-profile] promotions refresh failed', result.message);
+        }
+        return;
+      }
+
+      let promotions = result.promotions;
+      const viewerOwnsBusiness =
+        profileSource === 'supabase' && businessRecord?.id === targetBusinessId;
+
+      if (viewerOwnsBusiness) {
+        const scheduledResult = await getOwnerScheduledPromotionsForBusiness(targetBusinessId, now);
+        if (scheduledResult.ok) {
+          promotions = mergeOwnerProfilePromotions(result.promotions, scheduledResult.promotions);
+        } else if (__DEV__) {
+          console.error(
+            '[business-profile] scheduled promotions refresh failed',
+            scheduledResult.message,
+          );
+        }
+      }
+
+      setBusiness((current) =>
+        current && current.id === targetBusinessId ? { ...current, promotions } : current,
+      );
+    },
+    [businessRecord?.id, profileSource],
+  );
+
+  const refreshSupabaseReviews = useCallback(async (targetBusinessId: string) => {
+    const session = await getCurrentSession();
+    setCurrentUserId(session?.user?.id ?? null);
+
+    const result = await getBusinessReviewsBundle(targetBusinessId);
+    if (!result.ok) {
+      if (__DEV__) {
+        console.error('[business-profile] reviews load failed', result.message);
+      }
+      return;
+    }
+
+    setReviewSummary(result.summary);
+    setSupabaseReviews(result.reviews);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -392,18 +265,17 @@ export default function BusinessProfileScreen() {
     async function loadBusiness() {
       setLoading(true);
       setLoadError(null);
-
-      if (__DEV__) {
-        console.info('[business-profile] received route param id:', businessId);
-      }
+      setCurrentUserId(undefined);
 
       const mockBusiness = getBusinessById(businessId);
       if (mockBusiness) {
         if (!cancelled) {
-          if (__DEV__) {
-            console.info('[business-profile] loaded mock business', { businessId });
-          }
           setBusiness(mockBusiness);
+          setProfileSource('mock');
+          setReviewSummary(
+            buildReviewSummaryFromRatings(mockBusiness.reviews.map((review) => review.rating)),
+          );
+          setSupabaseReviews([]);
           setLoading(false);
         }
         return;
@@ -416,7 +288,12 @@ export default function BusinessProfileScreen() {
 
       if (result.ok) {
         setBusiness(result.business);
+        setProfileSource('supabase');
         setLoadError(null);
+        await Promise.all([
+          refreshSupabaseReviews(result.business.id),
+          refreshFollowerCount(result.business.id),
+        ]);
       } else {
         setBusiness(null);
         setLoadError(result.message);
@@ -437,11 +314,126 @@ export default function BusinessProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [businessId]);
+  }, [businessId, refreshSupabaseReviews, refreshFollowerCount]);
+
+  const postCount = business?.posts.length ?? 0;
+
+  const profilePostsIdsKey =
+    profileSource === 'supabase' && business
+      ? business.posts.map((post) => post.id).join(',')
+      : '';
+
+  const profilePostIds = useMemo(
+    () =>
+      profileSource === 'supabase' && business ? business.posts.map((post) => post.id) : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by post id list, not business object identity
+    [profileSource, profilePostsIdsKey],
+  );
+
+  const profilePostEngagement = usePostEngagement(profilePostIds);
+  const refreshProfilePostEngagement = profilePostEngagement.refresh;
+
+  const businessIdForFocus = business?.id;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (profileSource === 'supabase' && businessIdForFocus) {
+        void refreshSupabaseReviews(businessIdForFocus);
+        void refreshFollowerCount(businessIdForFocus);
+        void refreshProfilePromotions(businessIdForFocus);
+        if (activeTab === 'posts') {
+          void refreshProfilePostEngagement({ background: true });
+        }
+      }
+    }, [
+      profileSource,
+      businessIdForFocus,
+      activeTab,
+      refreshSupabaseReviews,
+      refreshFollowerCount,
+      refreshProfilePromotions,
+      refreshProfilePostEngagement,
+    ]),
+  );
+
+  const displayBusiness = useMemo(() => {
+    if (!business) {
+      return null;
+    }
+
+    if (profileSource === 'mock') {
+      return business;
+    }
+
+    return {
+      ...business,
+      rating: reviewSummary.averageRating,
+      reviewCount: reviewSummary.reviewCount,
+      followerCount,
+    };
+  }, [business, profileSource, reviewSummary, followerCount]);
+
+  const isBusinessOwner = Boolean(business && businessRecord?.id === business.id);
+
+  const hasOwnerScheduledPromotions = useMemo(
+    () => Boolean(business?.promotions.some((promotion) => promotion.ownerPreviewScheduled)),
+    [business?.promotions],
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'promotions' || !isBusinessOwner || !business?.id) {
+      return;
+    }
+
+    if (!hasOwnerScheduledPromotions) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      const nowMs = Date.now();
+      setPromotionTick(nowMs);
+      void refreshProfilePromotions(business.id, new Date(nowMs));
+    }, 60_000);
+
+    return () => clearInterval(intervalId);
+  }, [
+    activeTab,
+    business?.id,
+    hasOwnerScheduledPromotions,
+    isBusinessOwner,
+    refreshProfilePromotions,
+  ]);
+
+  const handleOwnerEditPromotion = useCallback((promotionId: string) => {
+    Haptics.selectionAsync();
+    router.push({
+      pathname: '/business-edit-promotion',
+      params: { id: promotionId },
+    });
+  }, []);
+
+  const primaryCta = useMemo((): PublicProfilePrimaryCta => {
+    if (!business || !profileSource) {
+      return 'loading';
+    }
+    if (profileSource === 'mock') {
+      return 'follow';
+    }
+    if (currentUserId === undefined) {
+      return 'loading';
+    }
+    if (business.ownerUserId && currentUserId === business.ownerUserId) {
+      return 'edit-profile';
+    }
+    return 'follow';
+  }, [business, profileSource, currentUserId]);
 
   const tabRows = useMemo(
-    () => (business ? buildTabRows(activeTab, business) : []),
-    [activeTab, business],
+    () =>
+      business && profileSource
+        ? buildTabRows(activeTab, business, profileSource)
+        : [],
+    [activeTab, business, profileSource],
   );
 
   const handleShare = async () => {
@@ -451,64 +443,217 @@ export default function BusinessProfileScreen() {
     });
   };
 
-  const handleTabChange = (tab: ProfileTab) => {
+  const handleTabChange = (tab: PublicProfileTab) => {
     Haptics.selectionAsync();
     setActiveTab(tab);
   };
 
+  const handleOpenPostDetail = useCallback((targetPostId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/post/[id]',
+      params: { id: targetPostId },
+    });
+  }, []);
+
+  const handleOpenReviews = () => {
+    Haptics.selectionAsync();
+    setActiveTab('reviews');
+  };
+
+  const handleOpenReviewEditor = useCallback(async () => {
+    if (!business) {
+      return;
+    }
+
+    const session = await getCurrentSession();
+    if (!session?.user?.id) {
+      Alert.alert('Sign in required', 'Please sign in to leave a review.');
+      return;
+    }
+
+    router.push(`/business/review/${business.id}`);
+  }, [business]);
+
+  const handleDeleteReview = useCallback(
+    (reviewId: string) => {
+      Alert.alert('Delete review?', 'This will remove your review from the business profile.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const result = await deleteBusinessReview(reviewId);
+              if (!result.ok) {
+                Alert.alert('Unable to delete', result.message);
+                return;
+              }
+              if (business) {
+                await refreshSupabaseReviews(business.id);
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [business, refreshSupabaseReviews],
+  );
+
   const renderTabRow: ListRenderItem<TabRow> = ({ item, index }) => {
     if (!business) return null;
 
-    if (item.kind === 'video-feed') {
+    if (item.kind === 'posts-empty') {
       return (
-        <Animated.View entering={FadeIn.duration(260)} style={styles.tabContentItem}>
-          <VideoFeed videos={business.videos} />
+        <PublicProfileTabEmpty
+          title="No posts yet"
+          message="This business has not published any posts or announcements."
+        />
+      );
+    }
+
+    if (item.kind === 'menu-empty') {
+      return (
+        <PublicProfileTabEmpty
+          title="No menu items yet"
+          message="Published menu items will appear here when available."
+        />
+      );
+    }
+
+    if (item.kind === 'events-empty') {
+      return (
+        <PublicProfileTabEmpty
+          title="No events yet"
+          message="Upcoming events from this business will show here."
+        />
+      );
+    }
+
+    if (item.kind === 'promotions-empty') {
+      return (
+        <PublicProfileTabEmpty
+          title="No active promotions"
+          message="This business does not have any live promotions right now."
+        />
+      );
+    }
+
+    if (item.kind === 'promotion') {
+      const promotionNow = new Date(promotionTick);
+      const scheduledLiveLabel = item.promotion.ownerPreviewScheduled
+        ? formatScheduledPromotionLiveLabel(item.promotion.startAt, promotionNow)
+        : null;
+      const showOwnerScheduledPreview = Boolean(scheduledLiveLabel?.trim());
+
+      return (
+        <Animated.View entering={FadeInDown.duration(320)} style={styles.promotionTabWrap}>
+          <ActivePromotionProfileCard
+            promotion={item.promotion}
+            scheduledLiveLabel={showOwnerScheduledPreview ? scheduledLiveLabel : null}
+            onOwnerEdit={
+              showOwnerScheduledPreview && isBusinessOwner
+                ? () => handleOwnerEditPromotion(item.promotion.id)
+                : undefined
+            }
+          />
+        </Animated.View>
+      );
+    }
+
+    if (item.kind === 'reviews-empty') {
+      return (
+        <PublicProfileReviewsPlaceholder
+          rating={business.rating}
+          reviewCount={business.reviewCount}
+        />
+      );
+    }
+
+    if (item.kind === 'reviews-panel') {
+      return (
+        <Animated.View entering={FadeIn.duration(260)}>
+          <PublicProfileReviewsPanel
+            business={business}
+            summary={reviewSummary}
+            reviews={supabaseReviews}
+            currentUserId={currentUserId ?? null}
+            isBusinessOwner={isBusinessOwner}
+            hasOwnReview={
+              currentUserId != null &&
+              supabaseReviews.some((review) => review.authorUserId === currentUserId)
+            }
+            onLeaveReview={() => {
+              void handleOpenReviewEditor();
+            }}
+            onEditReview={() => {
+              void handleOpenReviewEditor();
+            }}
+            onDeleteReview={handleDeleteReview}
+          />
+        </Animated.View>
+      );
+    }
+
+    if (item.kind === 'menu') {
+      return (
+        <Animated.View entering={FadeIn.duration(260)} style={styles.menuTabWrap}>
+          <MenuSectionsList sections={business.menu} />
         </Animated.View>
       );
     }
 
     if (item.kind === 'post') {
+      const counts = profilePostEngagement.getCounts(item.postId);
       return (
-        <Animated.View entering={FadeInDown.duration(320)} style={styles.postCard}>
-          <Image source={{ uri: item.image }} style={styles.postImage} contentFit="cover" transition={250} />
-          <View style={styles.postBody}>
-            <Text style={styles.postCaption}>{item.caption}</Text>
-            <Text style={styles.postMeta}>{item.postedAt}</Text>
-          </View>
-        </Animated.View>
+        <PublicProfilePhotoPostPreview
+          postId={item.postId}
+          image={item.image}
+          caption={item.caption}
+          postedAt={item.postedAt}
+          likeCount={counts.likeCount}
+          commentCount={counts.commentCount}
+          engagementLoading={
+            profileSource === 'supabase' &&
+            profilePostEngagement.loading &&
+            !profilePostEngagement.hasLoaded
+          }
+          engagementFailed={profileSource === 'supabase' && profilePostEngagement.failed}
+          showEngagement={profileSource === 'supabase'}
+          onPress={() => handleOpenPostDetail(item.postId)}
+        />
       );
     }
 
-    if (item.kind === 'promotion') {
+    if (item.kind === 'announcement') {
+      const counts = profilePostEngagement.getCounts(item.postId);
       return (
-        <Animated.View entering={FadeInDown.duration(320)} style={styles.profilePromotionCard}>
-          <View style={styles.profilePromotionBadge}>
-            <Text style={styles.profilePromotionBadgeText}>PROMOTION</Text>
-          </View>
-          <Image
-            source={{ uri: item.promotion.image }}
-            style={styles.profilePromotionImage}
-            contentFit="cover"
-            transition={250}
+        <PublicProfileAnnouncementPostPreview
+          caption={item.caption}
+          postedAt={item.postedAt}
+          likeCount={counts.likeCount}
+          commentCount={counts.commentCount}
+          engagementLoading={
+            profileSource === 'supabase' &&
+            profilePostEngagement.loading &&
+            !profilePostEngagement.hasLoaded
+          }
+          engagementFailed={profileSource === 'supabase' && profilePostEngagement.failed}
+          showEngagement={profileSource === 'supabase'}
+          onPress={() => handleOpenPostDetail(item.postId)}
+        />
+      );
+    }
+
+    if (item.kind === 'event') {
+      return (
+        <Animated.View entering={FadeInDown.duration(320)} style={styles.tabContentItem}>
+          <EventPreviewCard
+            draft={item.draft}
+            businessName={business.name}
+            businessAddress={business.address}
+            verified={business.verified}
           />
-          <View style={styles.profilePromotionBody}>
-            <Text style={styles.profilePromotionTitle}>{item.promotion.title}</Text>
-            <Text style={styles.profilePromotionDescription}>{item.promotion.description}</Text>
-            <Text style={styles.profilePromotionExpiry}>{item.promotion.expiresLabel}</Text>
-          </View>
-        </Animated.View>
-      );
-    }
-
-    if (item.kind === 'photo') {
-      return (
-        <Animated.View
-          entering={FadeIn.delay(item.index * 60).duration(300)}
-          style={[
-            styles.photoTile,
-            item.index % 3 === 0 ? styles.photoTileTall : styles.photoTileShort,
-          ]}>
-          <Image source={{ uri: item.uri }} style={styles.photoImage} contentFit="cover" transition={250} />
         </Animated.View>
       );
     }
@@ -533,20 +678,32 @@ export default function BusinessProfileScreen() {
 
     return (
       <Animated.View entering={FadeIn.duration(260)} style={styles.aboutContainer}>
-        <Text style={styles.aboutText}>{business.about}</Text>
+        {business.about ? <Text style={styles.aboutText}>{business.about}</Text> : null}
         <View style={styles.aboutCard}>
-          <View style={styles.aboutRow}>
-            <Ionicons name="time-outline" size={18} color={theme.textSecondary} />
-            <Text style={styles.aboutRowText}>{business.hours}</Text>
-          </View>
-          <View style={styles.aboutRow}>
-            <Ionicons name="location-outline" size={18} color={theme.textSecondary} />
-            <Text style={styles.aboutRowText}>{business.address}</Text>
-          </View>
-          <View style={styles.aboutRow}>
-            <Ionicons name="globe-outline" size={18} color={theme.textSecondary} />
-            <Text style={styles.aboutRowText}>{business.website}</Text>
-          </View>
+          {business.hours ? (
+            <View style={styles.aboutRow}>
+              <Ionicons name="time-outline" size={18} color={theme.textSecondary} />
+              <Text style={styles.aboutRowText}>{business.hours}</Text>
+            </View>
+          ) : null}
+          {business.address ? (
+            <View style={styles.aboutRow}>
+              <Ionicons name="location-outline" size={18} color={theme.textSecondary} />
+              <Text style={styles.aboutRowText}>{business.address}</Text>
+            </View>
+          ) : null}
+          {business.phone ? (
+            <View style={styles.aboutRow}>
+              <Ionicons name="call-outline" size={18} color={theme.textSecondary} />
+              <Text style={styles.aboutRowText}>{business.phone}</Text>
+            </View>
+          ) : null}
+          {business.website ? (
+            <View style={styles.aboutRow}>
+              <Ionicons name="globe-outline" size={18} color={theme.textSecondary} />
+              <Text style={styles.aboutRowText}>{business.website}</Text>
+            </View>
+          ) : null}
         </View>
       </Animated.View>
     );
@@ -561,7 +718,7 @@ export default function BusinessProfileScreen() {
     );
   }
 
-  if (!business) {
+  if (!business || !displayBusiness || !profileSource) {
     return (
       <View style={[styles.emptyState, { paddingTop: insets.top }]}>
         <Text style={styles.emptyTitle}>Business not found</Text>
@@ -582,28 +739,40 @@ export default function BusinessProfileScreen() {
         data={tabRows}
         keyExtractor={(item) => item.key}
         renderItem={renderTabRow}
-        numColumns={activeTab === 'photos' ? 2 : 1}
-        columnWrapperStyle={activeTab === 'photos' ? styles.photoRow : undefined}
+        extraData={[
+          promotionTick,
+          isBusinessOwner,
+          profilePostEngagement.loading,
+          profilePostEngagement.failed,
+          profilePostIds.join(','),
+        ]}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
-          <ProfileHeader
-            business={business}
+          <PublicProfileHeader
+            business={displayBusiness}
             insetsTop={insets.top}
             activeTab={activeTab}
-            following={following}
+            primaryCta={primaryCta}
+            following={isFollowing(business.id)}
             saved={saved}
+            postCount={postCount}
             onTabChange={handleTabChange}
             onToggleFollow={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setFollowing((value) => !value);
-            }}
-            onToggleSave={() => {
-              if (business) {
-                toggleBusinessSaved(business);
+              if (primaryCta !== 'follow') {
+                return;
               }
+              void (async () => {
+                const ok = await toggleFollow(business.id);
+                if (profileSource === 'supabase' && ok) {
+                  await refreshFollowerCount(business.id);
+                }
+              })();
             }}
+            onEditProfile={() => router.push('/business-edit-profile')}
+            onToggleSave={() => toggleBusinessSaved(business)}
             onShare={handleShare}
+            onOpenReviews={handleOpenReviews}
           />
         }
         ListFooterComponent={<View style={styles.tabPanelFooter} />}
@@ -615,667 +784,230 @@ export default function BusinessProfileScreen() {
 
 function createStyles(theme: AppThemeTokens) {
   return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.bg,
-  },
-  listHeader: {
-    zIndex: 1,
-  },
-  listContent: {
-    paddingBottom: 40,
-    paddingHorizontal: 16,
-  },
-  heroWrap: {
-    height: 200,
-    position: 'relative',
-    marginHorizontal: -16,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-  },
-  heroFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.emeraldGlow,
-  },
-  heroFallbackText: {
-    color: theme.emerald,
-    fontSize: 40,
-    fontFamily: BrandFonts.bold,
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.imageScrimMedium,
-  },
-  backButton: {
-    position: 'absolute',
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.imageControlBg,
-    borderWidth: 1,
-    borderColor: theme.imageControlBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileCardTop: {
-    marginTop: -36,
-    backgroundColor: theme.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.border,
-    borderBottomWidth: 0,
-    paddingHorizontal: 16,
-    paddingTop: 44,
-    paddingBottom: 0,
-  },
-  logoWrap: {
-    position: 'absolute',
-    top: -34,
-    alignSelf: 'center',
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 3,
-    borderColor: theme.bg,
-    overflow: 'hidden',
-    backgroundColor: theme.surfaceElevated,
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
-  },
-  logoFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.emeraldGlow,
-  },
-  logoFallbackText: {
-    color: theme.emerald,
-    fontSize: 18,
-    fontFamily: BrandFonts.bold,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  businessName: {
-    color: theme.text,
-    fontSize: 22,
-    fontFamily: BrandFonts.bold,
-    letterSpacing: -0.4,
-    textAlign: 'center',
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: theme.emeraldGlow,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  verifiedText: {
-    color: theme.emerald,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  categoryLine: {
-    color: theme.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 4,
-    fontWeight: '600',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 5,
-    marginTop: 8,
-  },
-  ratingText: {
-    color: theme.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  reviewCount: {
-    color: theme.textSecondary,
-    fontSize: 13,
-  },
-  followerCount: {
-    color: theme.textSecondary,
-    fontSize: 13,
-  },
-  bio: {
-    color: theme.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-    textAlign: 'center',
-    marginTop: 10,
-    paddingHorizontal: 8,
-    fontFamily: BrandFonts.regular,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 5,
-    marginTop: 8,
-  },
-  dot: {
-    color: theme.textMuted,
-    fontSize: 14,
-  },
-  distanceText: {
-    color: theme.textSecondary,
-    fontSize: 13,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  openPill: {
-    backgroundColor: theme.emeraldGlow,
-  },
-  closedPill: {
-    backgroundColor: theme.closedBadgeBg,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  openDot: {
-    backgroundColor: theme.emerald,
-  },
-  closedDot: {
-    backgroundColor: theme.closed,
-  },
-  statusText: {
-    color: theme.text,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  ctaRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  followButton: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: theme.emerald,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  followButtonActive: {
-    backgroundColor: theme.emeraldGlow,
-    borderWidth: 1,
-    borderColor: theme.emerald,
-  },
-  followButtonText: {
-    color: theme.onEmerald,
-    fontSize: 15,
-    fontFamily: BrandFonts.bold,
-  },
-  followButtonTextActive: {
-    color: theme.emerald,
-  },
-  saveProfileButton: {
-    flex: 1,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: theme.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  saveProfileText: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  saveProfileTextActive: {
-    color: theme.emerald,
-  },
-  buttonPressed: {
-    opacity: 0.86,
-    transform: [{ scale: 0.98 }],
-  },
-  compactActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 14,
-    paddingHorizontal: 2,
-  },
-  compactAction: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  compactActionPressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.96 }],
-  },
-  compactActionCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: theme.emerald,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: theme.emerald,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  compactActionLabel: {
-    color: theme.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingTop: 14,
-    paddingBottom: 12,
-    paddingRight: 8,
-  },
-  tabChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: theme.surfaceElevated,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-  },
-  tabChipActive: {
-    backgroundColor: theme.emeraldGlow,
-    borderColor: theme.emerald,
-  },
-  tabChipText: {
-    color: theme.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  tabChipTextActive: {
-    color: theme.emerald,
-  },
-  postCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.border,
-    overflow: 'hidden',
-    marginBottom: 12,
-    ...theme.shadowCard,
-  },
-  postImage: {
-    width: '100%',
-    height: 220,
-  },
-  postBody: {
-    padding: 16,
-    gap: 6,
-  },
-  postCaption: {
-    color: theme.text,
-    fontSize: 15,
-    lineHeight: 22,
-    fontFamily: BrandFonts.medium,
-  },
-  postMeta: {
-    color: theme.textSecondary,
-    fontSize: 13,
-    fontFamily: BrandFonts.regular,
-  },
-  profilePromotionCard: {
-    backgroundColor: theme.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.border,
-    overflow: 'hidden',
-    marginBottom: 12,
-    ...theme.shadowCard,
-  },
-  profilePromotionBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    zIndex: 1,
-    backgroundColor: theme.coral,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  profilePromotionBadgeText: {
-    color: theme.onCoral,
-    fontSize: 11,
-    fontFamily: BrandFonts.bold,
-    letterSpacing: 0.6,
-  },
-  profilePromotionImage: {
-    width: '100%',
-    height: 180,
-  },
-  profilePromotionBody: {
-    padding: 16,
-    gap: 6,
-  },
-  profilePromotionTitle: {
-    color: theme.text,
-    fontSize: 18,
-    fontFamily: BrandFonts.bold,
-    letterSpacing: -0.3,
-  },
-  profilePromotionDescription: {
-    color: theme.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: BrandFonts.regular,
-  },
-  profilePromotionExpiry: {
-    color: theme.coral,
-    fontSize: 13,
-    fontFamily: BrandFonts.semiBold,
-    marginTop: 2,
-  },
-  tabContentItem: {
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.border,
-    paddingHorizontal: 20,
-    paddingTop: 0,
-  },
-  videoFeedContainer: {
-    height: VIDEO_HEIGHT,
-    borderRadius: 20,
-    overflow: 'hidden' as const,
-    backgroundColor: theme.bg,
-  },
-  videoItem: {
-    width: '100%',
-    position: 'relative',
-  },
-  videoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  videoOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.imageScrimSubtle,
-  },
-  videoPlayWrap: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  videoPlayButton: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: theme.imageControlBg,
-    borderWidth: 1,
-    borderColor: theme.imageControlBorderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  videoSideActions: {
-    position: 'absolute',
-    right: 14,
-    bottom: 80,
-    gap: 16,
-    alignItems: 'center',
-  },
-  videoSideAction: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  videoSideText: {
-    color: theme.onImage,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  videoFooter: {
-    position: 'absolute',
-    left: 16,
-    right: 72,
-    bottom: 20,
-  },
-  videoCaption: {
-    color: theme.onImage,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  videoViews: {
-    color: theme.onImageMuted,
-    fontSize: 13,
-  },
-  photoRow: {
-    gap: PHOTO_GAP,
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.border,
-    paddingHorizontal: 20,
-  },
-  photoTile: {
-    width: PHOTO_WIDTH,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: theme.surfaceElevated,
-    marginBottom: PHOTO_GAP,
-  },
-  photoTileTall: {
-    height: 220,
-  },
-  photoTileShort: {
-    height: 160,
-  },
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  menuSectionHeader: {
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.border,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  menuSectionTitle: {
-    color: theme.text,
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-    marginBottom: 12,
-  },
-  menuItem: {
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.border,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  menuItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: theme.surfaceElevated,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-    padding: 14,
-  },
-  menuItemName: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '700',
-    flex: 1,
-  },
-  menuItemPrice: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  menuItemDescription: {
-    color: theme.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    paddingHorizontal: 14,
-    paddingTop: 6,
-  },
-  reviewCardWrap: {
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.border,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  reviewCard: {
-    backgroundColor: theme.surfaceElevated,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-    padding: 14,
-    gap: 10,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  reviewAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-  },
-  reviewMeta: {
-    flex: 1,
-    gap: 4,
-  },
-  reviewAuthor: {
-    color: theme.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  reviewDate: {
-    color: theme.textMuted,
-    fontSize: 12,
-  },
-  reviewText: {
-    color: theme.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  starRow: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  aboutContainer: {
-    gap: 14,
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: theme.border,
-    paddingHorizontal: 20,
-    paddingTop: 4,
-  },
-  aboutText: {
-    color: theme.textSecondary,
-    fontSize: 15,
-    lineHeight: 24,
-  },
-  aboutCard: {
-    backgroundColor: theme.surfaceElevated,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-    padding: 14,
-    gap: 12,
-  },
-  aboutRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  aboutRowText: {
-    color: theme.text,
-    fontSize: 14,
-    lineHeight: 20,
-    flex: 1,
-  },
-  tabPanelFooter: {
-    height: 12,
-    backgroundColor: theme.surface,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: theme.border,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    marginBottom: 16,
-  },
-  emptyState: {
-    flex: 1,
-    backgroundColor: theme.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  emptyTitle: {
-    color: theme.text,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  emptySubtitle: {
-    color: theme.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: BrandFonts.regular,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  loadingText: {
-    color: theme.textSecondary,
-    fontSize: 15,
-    fontFamily: BrandFonts.medium,
-  },
-  emptyButton: {
-    backgroundColor: theme.emerald,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  emptyButtonText: {
-    color: theme.onEmerald,
-    fontFamily: BrandFonts.bold,
-  },
+    container: {
+      flex: 1,
+      backgroundColor: theme.bg,
+    },
+    listHeader: {
+      zIndex: 1,
+    },
+    listContent: {
+      paddingBottom: 40,
+      paddingHorizontal: 16,
+    },
+    menuTabWrap: {
+      backgroundColor: theme.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: theme.border,
+    },
+    promotionTabWrap: {
+      backgroundColor: theme.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: theme.border,
+    },
+    postCard: {
+      backgroundColor: theme.surface,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.border,
+      overflow: 'hidden',
+      marginBottom: 12,
+      ...theme.shadowCard,
+    },
+    postImage: {
+      width: '100%',
+      height: 220,
+    },
+    postBody: {
+      padding: 16,
+      gap: 6,
+    },
+    postCaption: {
+      color: theme.text,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.medium,
+    },
+    postMeta: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      fontFamily: BrandFonts.regular,
+    },
+    announcementBody: {
+      padding: 16,
+      gap: 8,
+    },
+    announcementBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: theme.emeraldGlow,
+      borderWidth: 1,
+      borderColor: theme.emerald,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    announcementBadgeText: {
+      color: theme.emerald,
+      fontSize: 11,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+    },
+    announcementTitle: {
+      color: theme.text,
+      fontSize: 18,
+      lineHeight: 24,
+      fontFamily: BrandFonts.bold,
+      letterSpacing: -0.3,
+    },
+    announcementMessage: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: BrandFonts.regular,
+    },
+    tabContentItem: {
+      backgroundColor: theme.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 20,
+      paddingTop: 0,
+      marginBottom: 12,
+    },
+    reviewCardWrap: {
+      backgroundColor: theme.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+    },
+    reviewCard: {
+      backgroundColor: theme.surfaceElevated,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+      padding: 14,
+      gap: 10,
+    },
+    reviewHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    reviewAvatar: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+    },
+    reviewMeta: {
+      flex: 1,
+      gap: 4,
+    },
+    reviewAuthor: {
+      color: theme.text,
+      fontSize: 15,
+      fontFamily: BrandFonts.bold,
+    },
+    reviewDate: {
+      color: theme.textMuted,
+      fontSize: 12,
+      fontFamily: BrandFonts.regular,
+    },
+    reviewText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      lineHeight: 21,
+      fontFamily: BrandFonts.regular,
+    },
+    starRow: {
+      flexDirection: 'row',
+      gap: 2,
+    },
+    aboutContainer: {
+      gap: 14,
+      backgroundColor: theme.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderColor: theme.border,
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 8,
+    },
+    aboutText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 24,
+      fontFamily: BrandFonts.regular,
+    },
+    aboutCard: {
+      backgroundColor: theme.surfaceElevated,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+      padding: 14,
+      gap: 12,
+    },
+    aboutRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    aboutRowText: {
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 20,
+      flex: 1,
+      fontFamily: BrandFonts.regular,
+    },
+    tabPanelFooter: {
+      height: 12,
+      backgroundColor: theme.surface,
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: theme.border,
+      borderBottomLeftRadius: 24,
+      borderBottomRightRadius: 24,
+      marginBottom: 16,
+    },
+    emptyState: {
+      flex: 1,
+      backgroundColor: theme.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+    },
+    emptyTitle: {
+      color: theme.text,
+      fontSize: 18,
+      fontFamily: BrandFonts.bold,
+    },
+    emptySubtitle: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: BrandFonts.regular,
+      textAlign: 'center',
+      paddingHorizontal: 32,
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      fontFamily: BrandFonts.medium,
+    },
+    emptyButton: {
+      backgroundColor: theme.emerald,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    emptyButtonText: {
+      color: theme.onEmerald,
+      fontFamily: BrandFonts.bold,
+    },
   });
 }

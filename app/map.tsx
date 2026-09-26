@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -17,19 +16,26 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { MapBusinessMarker } from '@/components/map/map-business-marker';
 import { MapBusinessPreview } from '@/components/map/map-business-preview';
+import { MapChainPreview } from '@/components/map/map-chain-preview';
 import { MapFilterSheet } from '@/components/map/map-filter-sheet';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
-import { DEFAULT_MAP_CENTER, MAP_BUSINESSES } from '@/data/map-businesses';
-import { getBusinessById } from '@/data/businesses';
+import { DEFAULT_MAP_CENTER } from '@/data/map-businesses';
+import type { MapBusiness } from '@/data/map-businesses';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { fetchMapChainPins } from '@/services/mapChainPlaces';
+import { getMapBusinesses } from '@/services/mapBusinesses';
+import type { MapChainPin, MapPinWithDistance } from '@/types/map-pin';
+import { isMapChainPinWithDistance, isMapLocalPinWithDistance } from '@/types/map-pin';
+import { mapBusinessWithDistanceToSavedBusiness } from '@/utils/map-business-save';
+import { toMapLocalPins } from '@/utils/map-local-pin';
+import { toMapBusinessWithDistance } from '@/utils/map-local-pin-preview';
+import { countLocalPinsOnMap, mergeAndFilterMapPins } from '@/utils/map-pin-filters';
 import { openBusinessProfile } from '@/utils/open-business-profile';
 import {
   DEFAULT_MAP_FILTERS,
-  filterMapBusinesses,
   regionsAreDifferent,
-  type MapBusinessWithDistance,
   type MapFilters,
 } from '@/utils/map-filters';
 
@@ -53,7 +59,10 @@ export default function MapScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<MapFilters>(DEFAULT_MAP_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const [selectedBusiness, setSelectedBusiness] = useState<MapBusinessWithDistance | null>(null);
+  const [selectedPin, setSelectedPin] = useState<MapPinWithDistance | null>(null);
+  const [mapChainPins, setMapChainPins] = useState<MapChainPin[]>([]);
+  const [loadingChainPins, setLoadingChainPins] = useState(false);
+  const [chainPinsError, setChainPinsError] = useState<string | null>(null);
   const [visibleRegion, setVisibleRegion] = useState<Region>({
     ...DEFAULT_MAP_CENTER,
     ...INITIAL_DELTA,
@@ -63,6 +72,56 @@ export default function MapScreen() {
     ...INITIAL_DELTA,
   });
   const [showSearchArea, setShowSearchArea] = useState(false);
+  const [mapBusinesses, setMapBusinesses] = useState<MapBusiness[]>([]);
+  const [loadingBusinesses, setLoadingBusinesses] = useState(true);
+  const [businessesError, setBusinessesError] = useState<string | null>(null);
+  const hasLoadedBusinessesRef = useRef(false);
+  const [markerTracksViewChanges, setMarkerTracksViewChanges] = useState(true);
+
+  const loadMapBusinesses = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'initial') {
+      setLoadingBusinesses(true);
+    }
+
+    const result = await getMapBusinesses();
+
+    if (mode === 'initial') {
+      setLoadingBusinesses(false);
+    }
+
+    if (!result.ok) {
+      setBusinessesError(result.message);
+      if (__DEV__) {
+        console.error('[map:loadMapBusinesses]', result.message);
+      }
+      return;
+    }
+
+    setBusinessesError(null);
+    setMapBusinesses(result.businesses);
+    setMarkerTracksViewChanges(true);
+  }, []);
+
+  useEffect(() => {
+    if (mapBusinesses.length === 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setMarkerTracksViewChanges(false);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [mapBusinesses]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const mode = hasLoadedBusinessesRef.current ? 'refresh' : 'initial';
+      void loadMapBusinesses(mode).finally(() => {
+        hasLoadedBusinessesRef.current = true;
+      });
+    }, [loadMapBusinesses]),
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -117,40 +176,97 @@ export default function MapScreen() {
     };
   }, []);
 
-  const filteredBusinesses = useMemo(
+  const localPins = useMemo(() => toMapLocalPins(mapBusinesses), [mapBusinesses]);
+
+  useEffect(() => {
+    if (!filters.includeChains) {
+      setMapChainPins([]);
+      setChainPinsError(null);
+      setLoadingChainPins(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingChainPins(true);
+    setChainPinsError(null);
+
+    void fetchMapChainPins({
+      origin: searchOrigin,
+      radiusMiles: filters.distanceMiles,
+      category: filters.category,
+      openNow: filters.openNow,
+    }).then((result) => {
+      if (cancelled) {
+        return;
+      }
+
+      setLoadingChainPins(false);
+
+      if (result.ok) {
+        setMapChainPins(result.pins);
+        setChainPinsError(null);
+        setMarkerTracksViewChanges(true);
+      } else {
+        setMapChainPins([]);
+        setChainPinsError(result.message);
+        if (__DEV__) {
+          console.error('[map:fetchMapChainPins]', result.message);
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    filters.includeChains,
+    filters.distanceMiles,
+    searchOrigin.latitude,
+    searchOrigin.longitude,
+  ]);
+
+  useEffect(() => {
+    if (!filters.includeChains && selectedPin && isMapChainPinWithDistance(selectedPin)) {
+      setSelectedPin(null);
+    }
+  }, [filters.includeChains, selectedPin]);
+
+  const filteredPins = useMemo(
     () =>
-      filterMapBusinesses({
-        businesses: MAP_BUSINESSES,
+      mergeAndFilterMapPins({
+        localPins,
+        chainPins: mapChainPins,
         origin: searchOrigin,
         query: searchQuery,
         filters,
       }),
-    [filters, searchOrigin, searchQuery],
+    [filters, localPins, mapChainPins, searchOrigin, searchQuery],
   );
 
-  useEffect(() => {
-    if (
-      selectedBusiness &&
-      !filteredBusinesses.some((business) => business.id === selectedBusiness.id)
-    ) {
-      setSelectedBusiness(null);
-    }
-  }, [filteredBusinesses, selectedBusiness]);
+  const visibleLocalCount = useMemo(() => countLocalPinsOnMap(filteredPins), [filteredPins]);
 
-  const handleMarkerPress = useCallback((business: MapBusinessWithDistance) => {
+  useEffect(() => {
+    if (selectedPin && !filteredPins.some((pin) => pin.id === selectedPin.id)) {
+      setSelectedPin(null);
+    }
+  }, [filteredPins, selectedPin]);
+
+  const handleMarkerPress = useCallback((pin: MapPinWithDistance) => {
     suppressMapPressRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedBusiness(business);
+    setSelectedPin(pin);
+    setMarkerTracksViewChanges(true);
     setTimeout(() => {
       suppressMapPressRef.current = false;
-    }, 100);
+      setMarkerTracksViewChanges(false);
+    }, 350);
   }, []);
 
   const handleMapPress = useCallback(() => {
     if (suppressMapPressRef.current) {
       return;
     }
-    setSelectedBusiness(null);
+    setSelectedPin(null);
   }, []);
 
   const handleRegionChangeComplete = useCallback(
@@ -169,7 +285,7 @@ export default function MapScreen() {
     });
     setSearchedRegion(visibleRegion);
     setShowSearchArea(false);
-    setSelectedBusiness(null);
+    setSelectedPin(null);
   }, [visibleRegion]);
 
   const handleRecenter = useCallback(() => {
@@ -180,39 +296,35 @@ export default function MapScreen() {
     setSearchedRegion(region);
     setVisibleRegion(region);
     setShowSearchArea(false);
-    setSelectedBusiness(null);
+    setSelectedPin(null);
   }, [userLocation]);
 
-  const handleViewBusiness = useCallback((business: MapBusinessWithDistance) => {
-    if (business.profileId && getBusinessById(business.profileId)) {
-      openBusinessProfile(business.profileId);
+  const handleViewBusiness = useCallback((pin: MapPinWithDistance) => {
+    if (!isMapLocalPinWithDistance(pin)) {
       return;
     }
-
-    Alert.alert('Business profile coming soon', 'This business profile is not available yet.');
+    openBusinessProfile(pin.profileId, { source: 'map' });
   }, []);
 
   const handleToggleSave = useCallback(
-    (business: MapBusinessWithDistance) => {
-      if (!business.profileId) {
-        Alert.alert('Save unavailable', 'This business is not on LocalLoop yet.');
+    (pin: MapPinWithDistance) => {
+      if (!isMapLocalPinWithDistance(pin)) {
         return;
       }
-
-      const profile = getBusinessById(business.profileId);
-      if (!profile) {
-        Alert.alert('Save unavailable', 'This business is not on LocalLoop yet.');
-        return;
-      }
-
-      toggleBusinessSaved(profile);
+      toggleBusinessSaved(mapBusinessWithDistanceToSavedBusiness(toMapBusinessWithDistance(pin)));
     },
     [toggleBusinessSaved],
   );
 
-  const savedState = selectedBusiness?.profileId
-    ? isBusinessSaved(selectedBusiness.profileId)
-    : false;
+  const selectedLocalPin = selectedPin && isMapLocalPinWithDistance(selectedPin) ? selectedPin : null;
+  const selectedChainPin =
+    selectedPin && isMapChainPinWithDistance(selectedPin) ? selectedPin : null;
+
+  const savedState = selectedLocalPin ? isBusinessSaved(selectedLocalPin.profileId) : false;
+
+  const showFoursquareAttribution =
+    filters.includeChains &&
+    (loadingChainPins || mapChainPins.length > 0 || Boolean(selectedChainPin) || Boolean(chainPinsError));
 
   return (
     <View style={styles.container}>
@@ -225,26 +337,24 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         userInterfaceStyle={theme.isDark ? 'dark' : 'light'}
         onPress={handleMapPress}>
-        {filteredBusinesses.map((business) => (
+        {filteredPins.map((pin) => (
           <Marker
-            key={business.id}
-            identifier={business.id}
+            key={pin.id}
+            identifier={pin.id}
+            tappable
             coordinate={{
-              latitude: business.latitude,
-              longitude: business.longitude,
+              latitude: pin.latitude,
+              longitude: pin.longitude,
             }}
             anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={selectedBusiness !== null}
+            tracksViewChanges={markerTracksViewChanges || selectedPin?.id === pin.id}
             onPress={(event) => {
               if (typeof event.stopPropagation === 'function') {
                 event.stopPropagation();
               }
-              handleMarkerPress(business);
+              handleMarkerPress(pin);
             }}>
-            <MapBusinessMarker
-              business={business}
-              selected={selectedBusiness?.id === business.id}
-            />
+            <MapBusinessMarker pin={pin} selected={selectedPin?.id === pin.id} />
           </Marker>
         ))}
       </MapView>
@@ -284,7 +394,7 @@ export default function MapScreen() {
           <View style={styles.locationBanner}>
             <Ionicons name="location-outline" size={16} color={theme.coral} />
             <Text style={styles.locationBannerText}>
-              Location access denied. Showing Los Angeles placeholder businesses.
+              Location access denied. Distance uses the map center until you enable location.
             </Text>
           </View>
         ) : null}
@@ -292,9 +402,12 @@ export default function MapScreen() {
         <View style={styles.metaRow}>
           <View style={styles.countPill}>
             <Text style={styles.countText}>
-              {filteredBusinesses.length} local business{filteredBusinesses.length === 1 ? '' : 'es'}
+              {visibleLocalCount} local business{visibleLocalCount === 1 ? '' : 'es'}
             </Text>
           </View>
+          {loadingChainPins ? (
+            <ActivityIndicator size="small" color={theme.emerald} />
+          ) : null}
           {showSearchArea ? (
             <Pressable
               onPress={handleSearchArea}
@@ -303,6 +416,19 @@ export default function MapScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {chainPinsError && filters.includeChains ? (
+          <View style={styles.chainErrorBanner}>
+            <Ionicons name="cloud-offline-outline" size={16} color={theme.textSecondary} />
+            <Text style={styles.chainErrorText} numberOfLines={2}>
+              National chains unavailable. Local businesses still shown.
+            </Text>
+          </View>
+        ) : null}
+
+        {showFoursquareAttribution ? (
+          <Text style={styles.foursquareAttribution}>Powered by Foursquare</Text>
+        ) : null}
       </SafeAreaView>
 
       <View
@@ -314,17 +440,36 @@ export default function MapScreen() {
           <Ionicons name="locate" size={22} color={theme.emerald} />
         </Pressable>
 
-        {selectedBusiness ? (
+        {selectedLocalPin ? (
           <View pointerEvents="auto">
             <MapBusinessPreview
-            business={selectedBusiness}
-            saved={savedState}
-            onToggleSave={() => handleToggleSave(selectedBusiness)}
-            onViewBusiness={() => handleViewBusiness(selectedBusiness)}
-            onClose={() => setSelectedBusiness(null)}
-          />
+              business={toMapBusinessWithDistance(selectedLocalPin)}
+              saved={savedState}
+              onToggleSave={() => handleToggleSave(selectedLocalPin)}
+              onViewBusiness={() => handleViewBusiness(selectedLocalPin)}
+              onClose={() => setSelectedPin(null)}
+            />
           </View>
-        ) : filteredBusinesses.length === 0 && !loadingLocation ? (
+        ) : selectedChainPin ? (
+          <View pointerEvents="auto">
+            <MapChainPreview pin={selectedChainPin} onClose={() => setSelectedPin(null)} />
+          </View>
+        ) : businessesError ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Unable to load map businesses</Text>
+            <Text style={styles.emptyText}>{businessesError}</Text>
+            <Pressable
+              onPress={() => {
+                void loadMapBusinesses('initial');
+              }}
+              style={({ pressed }) => [styles.retryButton, pressed && styles.controlPressed]}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : visibleLocalCount === 0 &&
+          filteredPins.length === 0 &&
+          !loadingLocation &&
+          !loadingBusinesses ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>No businesses match</Text>
             <Text style={styles.emptyText}>
@@ -334,10 +479,12 @@ export default function MapScreen() {
         ) : null}
       </View>
 
-      {loadingLocation ? (
-        <View style={styles.loadingOverlay}>
+      {loadingLocation || loadingBusinesses ? (
+        <View style={styles.loadingOverlay} pointerEvents="auto">
           <ActivityIndicator color={theme.emerald} size="large" />
-          <Text style={styles.loadingText}>Finding your location…</Text>
+          <Text style={styles.loadingText}>
+            {loadingLocation ? 'Finding your location…' : 'Loading local businesses…'}
+          </Text>
         </View>
       ) : null}
 
@@ -468,6 +615,33 @@ function createStyles(theme: AppThemeTokens) {
       fontSize: 13,
       fontFamily: BrandFonts.semiBold,
     },
+    chainErrorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 8,
+      marginHorizontal: 20,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: BrandRadius.md,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    chainErrorText: {
+      flex: 1,
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 16,
+      fontFamily: BrandFonts.medium,
+    },
+    foursquareAttribution: {
+      marginTop: 6,
+      marginHorizontal: 20,
+      color: theme.textSecondary,
+      fontSize: 11,
+      fontFamily: BrandFonts.medium,
+    },
     searchAreaButton: {
       backgroundColor: theme.emerald,
       borderRadius: BrandRadius.pill,
@@ -521,7 +695,7 @@ function createStyles(theme: AppThemeTokens) {
       fontFamily: BrandFonts.regular,
     },
     loadingOverlay: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: theme.imageScrimLight,
       alignItems: 'center',
       justifyContent: 'center',
@@ -531,6 +705,19 @@ function createStyles(theme: AppThemeTokens) {
       color: theme.text,
       fontSize: 15,
       fontFamily: BrandFonts.medium,
+    },
+    retryButton: {
+      marginTop: 12,
+      alignSelf: 'flex-start',
+      backgroundColor: theme.emerald,
+      borderRadius: BrandRadius.md,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+    },
+    retryButtonText: {
+      color: theme.onEmerald,
+      fontSize: 14,
+      fontFamily: BrandFonts.semiBold,
     },
     controlPressed: {
       opacity: 0.9,

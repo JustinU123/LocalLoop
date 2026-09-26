@@ -29,6 +29,10 @@ export type MapBusiness = {
   hasPromotion: boolean;
   isOpen: boolean;
   description?: string;
+  streetAddress?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
 };
 
 export const DEFAULT_MAP_CENTER = {

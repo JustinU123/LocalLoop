@@ -1,8 +1,17 @@
 import { supabase } from '@/lib/supabase';
 import { formatRelativePostTime } from '@/services/explorePosts';
+import { getBusinessEvents } from '@/services/events';
+import { getActivePromotionsForBusiness } from '@/services/promotions';
+import { getBusinessMenuItems, groupMenuItemsIntoSections } from '@/services/menuItems';
 import { getBusinessPosts } from '@/services/posts';
 import type { Business, BusinessPost } from '@/data/businesses';
 import type { BusinessRow } from '@/types/supabase-business';
+import type { BusinessEvent } from '@/types/supabase-event';
+import type { BusinessMenuItem } from '@/types/supabase-menu-item';
+import {
+  resolveBusinessCoverUrl,
+  resolveBusinessLogoUrl,
+} from '@/utils/business-branding-display';
 
 export type PublicBusinessProfileErrorCode = 'not_found' | 'network' | 'unexpected';
 
@@ -11,7 +20,7 @@ export type GetPublicBusinessProfileResult =
   | { ok: false; code: PublicBusinessProfileErrorCode; message: string };
 
 const PUBLIC_BUSINESS_SELECT =
-  'id, name, category, description, phone, email, instagram, website, street_address, city, state, postal_code, latitude, longitude, verification_status';
+  'id, owner_user_id, name, category, description, phone, email, instagram, website, street_address, city, state, postal_code, latitude, longitude, verification_status, logo_url, cover_image_url';
 
 function logDevError(scope: string, error: unknown, context?: Record<string, unknown>) {
   if (__DEV__) {
@@ -41,20 +50,46 @@ function buildAddress(row: BusinessRow): string {
 
 function mapSupabaseBusinessToProfile(
   row: BusinessRow,
-  posts: Array<{ id: string; imageUrl: string; caption: string | null; createdAt: string }>,
+  posts: Array<{
+    id: string;
+    postType: 'photo' | 'announcement';
+    imageUrl: string | null;
+    caption: string | null;
+    createdAt: string;
+  }>,
+  menuItems: BusinessMenuItem[],
+  events: BusinessEvent[],
+  promotions: Business['promotions'],
 ): Business {
-  const postImages = posts.map((post) => post.imageUrl).filter(Boolean);
-  const coverImage = postImages[0] ?? '';
+  const postImages = posts
+    .filter((post) => post.postType === 'photo' && post.imageUrl)
+    .map((post) => post.imageUrl as string);
+  const legacyCoverFallback = postImages[0] ?? menuItems[0]?.imageUrl ?? null;
+  const legacyLogoFallback = postImages[0] ?? null;
+
+  const logo = resolveBusinessLogoUrl({
+    logoUrl: row.logo_url,
+    legacyFallback: legacyLogoFallback,
+  });
+  const cover = resolveBusinessCoverUrl({
+    coverUrl: row.cover_image_url,
+    logoUrl: row.logo_url,
+    legacyFallback: legacyCoverFallback,
+  });
 
   const profilePosts: BusinessPost[] = posts.map((post) => ({
     id: post.id,
-    image: post.imageUrl,
+    postType: post.postType,
+    image: post.imageUrl ?? undefined,
     caption: post.caption ?? '',
     postedAt: formatRelativePostTime(post.createdAt),
   }));
 
+  const menu = groupMenuItemsIntoSections(menuItems);
+
   return {
     id: row.id,
+    ownerUserId: row.owner_user_id,
     name: row.name,
     category: row.category?.trim() || 'Local Business',
     distance: '',
@@ -63,9 +98,9 @@ function mapSupabaseBusinessToProfile(
     followerCount: 0,
     latitude: row.latitude ?? 0,
     longitude: row.longitude ?? 0,
-    image: coverImage,
-    logo: coverImage,
-    cover: coverImage,
+    image: cover,
+    logo,
+    cover,
     verified: row.verification_status === 'verified',
     isOpen: false,
     phone: row.phone?.trim() ?? '',
@@ -76,8 +111,9 @@ function mapSupabaseBusinessToProfile(
     photos: postImages,
     videos: [],
     posts: profilePosts,
-    promotions: [],
-    menu: [],
+    promotions,
+    events,
+    menu,
     reviews: [],
   };
 }
@@ -113,9 +149,6 @@ export async function getPublicBusinessProfile(
     }
 
     if (!data) {
-      if (__DEV__) {
-        console.info('[publicBusinessProfile] no verified business row', { businessId: trimmedId });
-      }
       return {
         ok: false,
         code: 'not_found',
@@ -135,14 +168,49 @@ export async function getPublicBusinessProfile(
       };
     }
 
-    const business = mapSupabaseBusinessToProfile(data as BusinessRow, postsResult.posts);
-
-    if (__DEV__) {
-      console.info('[publicBusinessProfile] loaded', {
+    const menuItemsResult = await getBusinessMenuItems(trimmedId);
+    if (!menuItemsResult.ok) {
+      logDevError('getPublicBusinessProfile.menuItems', menuItemsResult.message, {
         businessId: trimmedId,
-        postCount: business.posts.length,
       });
+      return {
+        ok: false,
+        code: menuItemsResult.code === 'network' ? 'network' : 'unexpected',
+        message: 'Unable to load this business right now.',
+      };
     }
+
+    const eventsResult = await getBusinessEvents(trimmedId);
+    if (!eventsResult.ok) {
+      logDevError('getPublicBusinessProfile.events', eventsResult.message, {
+        businessId: trimmedId,
+      });
+      return {
+        ok: false,
+        code: eventsResult.code === 'network' ? 'network' : 'unexpected',
+        message: 'Unable to load this business right now.',
+      };
+    }
+
+    const promotionsResult = await getActivePromotionsForBusiness(trimmedId);
+    if (!promotionsResult.ok) {
+      logDevError('getPublicBusinessProfile.promotions', promotionsResult.message, {
+        businessId: trimmedId,
+      });
+      return {
+        ok: false,
+        code: promotionsResult.code === 'network' ? 'network' : 'unexpected',
+        message: 'Unable to load this business right now.',
+      };
+    }
+
+    const business = mapSupabaseBusinessToProfile(
+      data as BusinessRow,
+      postsResult.posts,
+      menuItemsResult.items,
+      eventsResult.events,
+      promotionsResult.promotions,
+    );
 
     return { ok: true, business, source: 'supabase' };
   } catch (error) {

@@ -3,12 +3,12 @@ import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
-import type { Promotion } from '@/data/promotions';
+import type { PromotionFeedItem } from '@/types/promotion-feed';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 
 type PromotionCardProps = {
-  promotion: Promotion;
+  promotion: PromotionFeedItem;
   saved: boolean;
   onToggleSave: () => void;
   onViewBusiness: () => void;
@@ -26,12 +26,18 @@ export function PromotionCard({
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Image
-          source={{ uri: promotion.businessLogo }}
-          style={styles.avatar}
-          contentFit="cover"
-          transition={200}
-        />
+        {promotion.businessLogo ? (
+          <Image
+            source={{ uri: promotion.businessLogo }}
+            style={styles.avatar}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <Ionicons name="storefront-outline" size={20} color={theme.textSecondary} />
+          </View>
+        )}
         <View style={styles.headerText}>
           <View style={styles.nameRow}>
             <Text style={styles.businessName}>{promotion.businessName}</Text>
@@ -41,36 +47,37 @@ export function PromotionCard({
                 <Text style={styles.badgeText}>Verified</Text>
               </View>
             ) : null}
-            {promotion.localFavorite ? (
-              <View style={[styles.badge, styles.localBadge]}>
-                <Ionicons name="heart" size={11} color={theme.coral} />
-                <Text style={styles.localBadgeText}>Local favorite</Text>
-              </View>
-            ) : null}
           </View>
-          <Text style={styles.distance}>{promotion.distance}</Text>
+          {promotion.distanceLabel ? (
+            <Text style={styles.distance}>{promotion.distanceLabel}</Text>
+          ) : null}
         </View>
       </View>
 
-      <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: promotion.promotionImage }}
-          style={styles.promotionImage}
-          contentFit="cover"
-          transition={250}
-        />
-        <View style={styles.promotionBadge}>
-          <Text style={styles.promotionBadgeText}>PROMOTION</Text>
+      {promotion.promotionImage ? (
+        <View style={styles.imageWrap}>
+          <Image
+            source={{ uri: promotion.promotionImage }}
+            style={styles.promotionImage}
+            contentFit="cover"
+            transition={250}
+          />
+          <View style={styles.promotionBadge}>
+            <Text style={styles.promotionBadgeText}>PROMOTION</Text>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       <View style={styles.body}>
         <Text style={styles.title}>{promotion.title}</Text>
         <Text style={styles.description}>{promotion.description}</Text>
         <View style={styles.metaRow}>
           <Ionicons name="time-outline" size={14} color={theme.textSecondary} />
-          <Text style={styles.metaText}>{promotion.expiresLabel}</Text>
+          <Text style={styles.metaText}>{promotion.scheduleLabel}</Text>
         </View>
+        {promotion.expiresLabel ? (
+          <Text style={styles.metaSubtext}>{promotion.expiresLabel}</Text>
+        ) : null}
       </View>
 
       <View style={styles.actionsRow}>
@@ -120,6 +127,10 @@ function createStyles(theme: AppThemeTokens) {
       backgroundColor: theme.surfaceElevated,
       borderWidth: 1,
       borderColor: theme.border,
+    },
+    avatarPlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     headerText: {
       flex: 1,
@@ -222,6 +233,13 @@ function createStyles(theme: AppThemeTokens) {
       color: theme.textSecondary,
       fontSize: 13,
       fontFamily: BrandFonts.medium,
+      flex: 1,
+    },
+    metaSubtext: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      fontFamily: BrandFonts.semiBold,
+      marginTop: -4,
     },
     actionsRow: {
       flexDirection: 'row',

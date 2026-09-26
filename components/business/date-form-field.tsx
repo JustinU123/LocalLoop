@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { formatDisplayDate, serializeIsoDate } from '@/utils/date-time';
 
@@ -23,6 +24,7 @@ export function DateFormField({
   minimumDate,
 }: DateFormFieldProps) {
   const styles = useThemedStyles(createStyles);
+  const { theme, resolvedScheme } = useAppTheme();
   const [showPicker, setShowPicker] = useState(false);
   const selectedDate = value ? new Date(value) : minimumDate ?? new Date();
 
@@ -58,6 +60,9 @@ export function DateFormField({
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             minimumDate={minimumDate}
             onChange={handleChange}
+            {...(Platform.OS === 'ios'
+              ? { themeVariant: resolvedScheme, textColor: theme.text }
+              : {})}
           />
           {Platform.OS === 'ios' ? (
             <Pressable onPress={() => setShowPicker(false)} style={styles.doneButton}>

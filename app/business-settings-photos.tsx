@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountScreenHeader } from '@/components/account/account-screen-header';
+import { BusinessSuccessOverlay } from '@/components/business/business-success-overlay';
 import { MediaSourceOption } from '@/components/business/media-source-option';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import { useAccountMode } from '@/contexts/account-mode-context';
@@ -54,6 +55,9 @@ export default function BusinessSettingsPhotosScreen() {
   const [coverUploading, setCoverUploading] = useState(false);
   const [logoRemoving, setLogoRemoving] = useState(false);
   const [coverRemoving, setCoverRemoving] = useState(false);
+  const [brandingOverlayPhase, setBrandingOverlayPhase] = useState<
+    'idle' | 'loading' | 'success'
+  >('idle');
 
   const loadBranding = useCallback(async () => {
     setLoading(true);
@@ -85,16 +89,19 @@ export default function BusinessSettingsPhotosScreen() {
       height: asset.height,
     };
 
+    setBrandingOverlayPhase('loading');
+
     if (kind === 'logo') {
       setLogoUploading(true);
       try {
         const result = await setOwnerBusinessLogo(params);
         if (!result.ok) {
+          setBrandingOverlayPhase('idle');
           Alert.alert('Unable to update profile picture', result.message);
           return;
         }
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setBranding(result.branding);
+        setBrandingOverlayPhase('success');
       } finally {
         setLogoUploading(false);
       }
@@ -105,11 +112,12 @@ export default function BusinessSettingsPhotosScreen() {
     try {
       const result = await setOwnerBusinessCover(params);
       if (!result.ok) {
+        setBrandingOverlayPhase('idle');
         Alert.alert('Unable to update cover photo', result.message);
         return;
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setBranding(result.branding);
+      setBrandingOverlayPhase('success');
     } finally {
       setCoverUploading(false);
     }
@@ -147,13 +155,15 @@ export default function BusinessSettingsPhotosScreen() {
               if (isLogo) {
                 setLogoRemoving(true);
                 try {
+                  setBrandingOverlayPhase('loading');
                   const result = await removeOwnerBusinessLogo();
                   if (!result.ok) {
+                    setBrandingOverlayPhase('idle');
                     Alert.alert('Unable to remove profile picture', result.message);
                     return;
                   }
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   setBranding(result.branding);
+                  setBrandingOverlayPhase('success');
                 } finally {
                   setLogoRemoving(false);
                 }
@@ -162,13 +172,15 @@ export default function BusinessSettingsPhotosScreen() {
 
               setCoverRemoving(true);
               try {
+                setBrandingOverlayPhase('loading');
                 const result = await removeOwnerBusinessCover();
                 if (!result.ok) {
+                  setBrandingOverlayPhase('idle');
                   Alert.alert('Unable to remove cover photo', result.message);
                   return;
                 }
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 setBranding(result.branding);
+                setBrandingOverlayPhase('success');
               } finally {
                 setCoverRemoving(false);
               }
@@ -376,6 +388,19 @@ export default function BusinessSettingsPhotosScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <BusinessSuccessOverlay
+        visible={brandingOverlayPhase !== 'idle'}
+        phase={brandingOverlayPhase === 'loading' ? 'loading' : 'success'}
+        loadingTitle="Saving…"
+        loadingMessage="Updating your business branding."
+        successTitle="Photos updated!"
+        successMessage="Your business branding has been saved."
+        primaryAction={{
+          label: 'Done',
+          onPress: () => setBrandingOverlayPhase('idle'),
+        }}
+      />
     </SafeAreaView>
   );
 }

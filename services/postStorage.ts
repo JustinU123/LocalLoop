@@ -73,6 +73,14 @@ export function buildPostImageStoragePath(
   return path;
 }
 
+export function buildBusinessImageStoragePath(
+  businessId: string,
+  userId: string,
+  extension: string,
+): string {
+  return buildPostImageStoragePath(businessId, userId, extension);
+}
+
 export async function prepareImageUploadBody(
   uri: string,
   fileName?: string | null,
@@ -123,10 +131,6 @@ export async function uploadPostImage(params: {
     const { body, contentType, extension } = await prepareImageUploadBody(params.uri, params.fileName);
     const path = buildPostImageStoragePath(params.businessId, user.id, extension);
 
-    if (__DEV__) {
-      console.log('[postStorage:uploadPostImage] path', path);
-    }
-
     const { error } = await supabase.storage.from(POST_IMAGES_BUCKET).upload(path, body, {
       contentType,
       upsert: false,
@@ -148,6 +152,34 @@ export async function uploadPostImage(params: {
   } catch (error) {
     logDevError('uploadPostImage', error);
     return { ok: false, message: "We couldn't upload your photo. Please try again." };
+  }
+}
+
+export function extractPostImageStoragePath(publicUrl: string | null | undefined): string | null {
+  if (!publicUrl) {
+    return null;
+  }
+
+  const trimmed = publicUrl.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const marker = `/storage/v1/object/public/${POST_IMAGES_BUCKET}/`;
+  const markerIndex = trimmed.indexOf(marker);
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const rawPath = trimmed.slice(markerIndex + marker.length).split('?')[0] ?? '';
+  if (!rawPath || rawPath.includes('..')) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(rawPath);
+  } catch {
+    return null;
   }
 }
 

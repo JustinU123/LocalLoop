@@ -1,8 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +19,8 @@ import { AnnouncementImageField } from '@/components/business/announcement-image
 import { DateFormField } from '@/components/business/date-form-field';
 import { FormFieldWithCounter } from '@/components/business/form-field-with-counter';
 import { OptionChipGroup } from '@/components/business/option-chip-group';
+import { UnsavedChangesDiscardModal } from '@/components/business/unsaved-changes-discard-modal';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import {
   ANNOUNCEMENT_CATEGORY_OPTIONS,
@@ -46,13 +46,19 @@ export default function BusinessCreateAnnouncementScreen() {
   useVerifiedBusinessAnnouncementGuard();
   const canCreate = useCanCreateBusinessContent();
   const styles = useThemedStyles(createStyles);
-  const navigation = useNavigation();
   const [form, setForm] = useState<AnnouncementDraft>(
     () => getAnnouncementDraft() ?? createEmptyAnnouncementDraft(),
   );
 
   const { valid, errors } = useMemo(() => validateAnnouncementForm(form), [form]);
   const isDirty = useMemo(() => !isAnnouncementFormEmpty(form), [form]);
+
+  const { attemptBack, discardModalProps } = useUnsavedChangesGuard({
+    isDirty,
+    title: 'Discard this announcement?',
+    onDiscard: clearAnnouncementDraft,
+  });
+
   const today = useMemo(() => todayStart(), []);
 
   const endDateMinimum = useMemo(() => {
@@ -76,48 +82,6 @@ export default function BusinessCreateAnnouncementScreen() {
     }));
   };
 
-  const attemptBack = useCallback(() => {
-    if (!isDirty) {
-      router.back();
-      return;
-    }
-
-    Alert.alert('Discard this announcement?', undefined, [
-      { text: 'Keep Editing', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => {
-          clearAnnouncementDraft();
-          router.back();
-        },
-      },
-    ]);
-  }, [isDirty]);
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (event) => {
-      if (!isDirty) {
-        return;
-      }
-
-      event.preventDefault();
-      Alert.alert('Discard this announcement?', undefined, [
-        { text: 'Keep Editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => {
-            clearAnnouncementDraft();
-            navigation.dispatch(event.data.action);
-          },
-        },
-      ]);
-    });
-
-    return unsubscribe;
-  }, [navigation, isDirty]);
-
   const handleContinue = () => {
     if (!valid || !canCreate) {
       return;
@@ -131,6 +95,7 @@ export default function BusinessCreateAnnouncementScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <AccountScreenHeader title="Create Announcement" onBackPress={attemptBack} />
+        <UnsavedChangesDiscardModal {...discardModalProps} />
       </SafeAreaView>
     );
   }
@@ -251,6 +216,7 @@ export default function BusinessCreateAnnouncementScreen() {
           <PrimaryButton label="Continue" onPress={handleContinue} disabled={!valid} />
         </View>
       </KeyboardAvoidingView>
+      <UnsavedChangesDiscardModal {...discardModalProps} />
     </SafeAreaView>
   );
 }

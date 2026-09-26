@@ -1,0 +1,5 @@
+# LocalLoop Supabase local/deploy config (minimal).
+# Link your project: supabase link --project-ref <ref>
+
+[functions.map-chain-places]
+verify_jwt = false

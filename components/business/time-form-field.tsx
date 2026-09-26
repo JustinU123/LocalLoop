@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
+import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { formatDisplayTime, parseTimeValue, serializeTimeValue } from '@/utils/date-time';
 
@@ -12,10 +13,13 @@ type TimeFormFieldProps = {
   value: string | null;
   error?: string;
   onChange: (timeValue: string) => void;
+  /** Tighter layout for paired open/close rows (Business Hours). */
+  compact?: boolean;
 };
 
-export function TimeFormField({ label, value, error, onChange }: TimeFormFieldProps) {
+export function TimeFormField({ label, value, error, onChange, compact }: TimeFormFieldProps) {
   const styles = useThemedStyles(createStyles);
+  const { theme, resolvedScheme } = useAppTheme();
   const [showPicker, setShowPicker] = useState(false);
   const selectedTime = useMemo(() => {
     const parsed = parseTimeValue(value);
@@ -39,14 +43,19 @@ export function TimeFormField({ label, value, error, onChange }: TimeFormFieldPr
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={[styles.container, compact && styles.containerCompact]}>
+      <Text style={[styles.label, compact && styles.labelCompact]}>{label}</Text>
       <Pressable
         onPress={() => {
           Haptics.selectionAsync();
           setShowPicker(true);
         }}
-        style={({ pressed }) => [styles.input, pressed && styles.inputPressed, error && styles.inputError]}>
+        style={({ pressed }) => [
+          styles.input,
+          compact && styles.inputCompact,
+          pressed && styles.inputPressed,
+          error && styles.inputError,
+        ]}>
         <Text style={[styles.value, !value && styles.placeholder]}>{formatDisplayTime(value)}</Text>
       </Pressable>
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -57,6 +66,9 @@ export function TimeFormField({ label, value, error, onChange }: TimeFormFieldPr
             mode="time"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleChange}
+            {...(Platform.OS === 'ios'
+              ? { themeVariant: resolvedScheme, textColor: theme.text }
+              : {})}
           />
           {Platform.OS === 'ios' ? (
             <Pressable onPress={() => setShowPicker(false)} style={styles.doneButton}>
@@ -74,10 +86,16 @@ function createStyles(theme: AppThemeTokens) {
     container: {
       gap: 8,
     },
+    containerCompact: {
+      gap: 4,
+    },
     label: {
       color: theme.text,
       fontSize: 14,
       fontFamily: BrandFonts.semiBold,
+    },
+    labelCompact: {
+      fontSize: 13,
     },
     input: {
       backgroundColor: theme.surface,
@@ -86,6 +104,10 @@ function createStyles(theme: AppThemeTokens) {
       borderRadius: BrandRadius.md,
       paddingHorizontal: 14,
       paddingVertical: 14,
+    },
+    inputCompact: {
+      paddingHorizontal: 12,
+      paddingVertical: 11,
     },
     inputPressed: {
       backgroundColor: theme.surfaceElevated,

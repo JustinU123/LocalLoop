@@ -1,5 +1,7 @@
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   ListRenderItem,
   StyleSheet,
@@ -13,14 +15,13 @@ import { PromotionCard } from '@/components/promotions/promotion-card';
 import { RadiusSelector } from '@/components/promotions/radius-selector';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
-import {
-  FOLLOWING_PROMOTIONS,
-  NEARBY_PROMOTIONS,
-  type Promotion,
-} from '@/data/promotions';
-import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useLocationSettings } from '@/contexts/location-settings-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
+import { useAppTheme } from '@/contexts/app-theme-context';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { listFollowedBusinessIdsForCurrentUser } from '@/services/businessFollows';
+import { getActivePromotionFeed } from '@/services/promotions';
+import type { PromotionFeedItem } from '@/types/promotion-feed';
 import { openBusinessProfile } from '@/utils/open-business-profile';
 
 type PromotionsSegment = 'following' | 'nearby';
@@ -32,23 +33,60 @@ const SEGMENT_OPTIONS: { id: PromotionsSegment; label: string }[] = [
 
 export default function PromotionsScreen() {
   const styles = useThemedStyles(createStyles);
-  const { searchRadius, setSearchRadius } = useLocationSettings();
-  const [segment, setSegment] = useState<PromotionsSegment>('following');
+  const { theme } = useAppTheme();
+  const { searchRadius, setSearchRadius, coordinates } = useLocationSettings();
+  const [segment, setSegment] = useState<PromotionsSegment>('nearby');
   const { isPromotionSaved, togglePromotionSaved } = useSavedItems();
+  const [allPromotions, setAllPromotions] = useState<PromotionFeedItem[]>([]);
+  const [followedBusinessIds, setFollowedBusinessIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadPromotions = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+
+    const [feedResult, followsResult] = await Promise.all([
+      getActivePromotionFeed({ origin: coordinates }),
+      listFollowedBusinessIdsForCurrentUser(),
+    ]);
+
+    if (!feedResult.ok) {
+      setAllPromotions([]);
+      setLoadError(feedResult.message);
+      setLoading(false);
+      return;
+    }
+
+    setAllPromotions(feedResult.promotions);
+    if (followsResult.ok) {
+      setFollowedBusinessIds(followsResult.businessIds);
+    } else {
+      setFollowedBusinessIds([]);
+    }
+    setLoading(false);
+  }, [coordinates]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPromotions();
+    }, [loadPromotions]),
+  );
 
   const promotions = useMemo(() => {
     if (segment === 'following') {
-      return FOLLOWING_PROMOTIONS;
+      const allowed = new Set(followedBusinessIds);
+      return allPromotions.filter((promotion) => allowed.has(promotion.businessId));
     }
 
-    return NEARBY_PROMOTIONS.filter((promotion) => promotion.distanceMiles <= searchRadius);
-  }, [segment, searchRadius]);
+    return allPromotions.filter((promotion) => promotion.distanceMiles <= searchRadius);
+  }, [allPromotions, followedBusinessIds, segment, searchRadius]);
 
   const handleViewBusiness = useCallback((businessId: string) => {
-    openBusinessProfile(businessId);
+    openBusinessProfile(businessId, { source: 'promotions-tab' });
   }, []);
 
-  const renderPromotion: ListRenderItem<Promotion> = useCallback(
+  const renderPromotion: ListRenderItem<PromotionFeedItem> = useCallback(
     ({ item }) => (
       <PromotionCard
         promotion={item}
@@ -75,24 +113,39 @@ export default function PromotionsScreen() {
           <RadiusSelector selectedRadius={searchRadius} onSelect={setSearchRadius} />
         </View>
       ) : null}
+      {loading ? (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator color={theme.emerald} />
+          <Text style={styles.loadingText}>Loading active promotions…</Text>
+        </View>
+      ) : null}
+      {loadError ? (
+        <Text style={styles.errorText}>{loadError}</Text>
+      ) : null}
     </View>
   );
 
   const listEmpty = (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyTitle}>No promotions in this radius</Text>
-      <Text style={styles.emptyText}>Try expanding your search radius to discover more nearby deals.</Text>
+      <Text style={styles.emptyTitle}>
+        {segment === 'following' ? 'No active promotions from businesses you follow' : 'No promotions in this radius'}
+      </Text>
+      <Text style={styles.emptyText}>
+        {segment === 'following'
+          ? 'Follow verified local businesses to see their live promotions here.'
+          : 'Try expanding your search radius to discover more nearby deals.'}
+      </Text>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={promotions}
+        data={loading ? [] : promotions}
         keyExtractor={(item) => item.id}
         renderItem={renderPromotion}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={segment === 'nearby' ? listEmpty : null}
+        ListEmptyComponent={!loading ? listEmpty : null}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -134,6 +187,21 @@ function createStyles(theme: AppThemeTokens) {
       fontSize: 13,
       fontFamily: BrandFonts.semiBold,
       letterSpacing: 0.2,
+    },
+    loadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontFamily: BrandFonts.medium,
+    },
+    errorText: {
+      color: theme.coral,
+      fontSize: 14,
+      fontFamily: BrandFonts.medium,
     },
     separator: {
       height: 16,

@@ -1,10 +1,22 @@
 import { supabase } from '@/lib/supabase';
 import type { ExplorePost } from '@/data/explore-posts';
+import type { ConsumerPublishedPost } from '@/types/consumer-published-post';
+import type { PostType } from '@/types/supabase-post';
+import { getPostsEngagementCounts, getUserLikedPostIds } from '@/services/postEngagement';
+import { resolveBusinessLogoUrl } from '@/utils/business-branding-display';
 
 export type ExplorePostsErrorCode = 'network' | 'unexpected';
 
+export type GetPublishedPostByIdResult =
+  | { ok: true; post: ConsumerPublishedPost }
+  | { ok: false; code: ExplorePostsErrorCode | 'not_found'; message: string };
+
 export type GetPublishedExplorePostsResult =
-  | { ok: true; posts: ExplorePost[] }
+  | {
+      ok: true;
+      posts: ExplorePost[];
+      likedPostIds: Set<string>;
+    }
   | { ok: false; code: ExplorePostsErrorCode; message: string };
 
 type ExploreBusinessRow = {
@@ -15,6 +27,7 @@ type ExploreBusinessRow = {
   city: string | null;
   state: string | null;
   verification_status: string;
+  logo_url: string | null;
 };
 
 type ExplorePostRow = {
@@ -22,6 +35,7 @@ type ExplorePostRow = {
   business_id: string;
   caption: string | null;
   image_url: string | null;
+  post_type: PostType | null;
   status: string;
   created_at: string;
   businesses: ExploreBusinessRow | ExploreBusinessRow[] | null;
@@ -42,6 +56,7 @@ const EXPLORE_POST_SELECT = `
   business_id,
   caption,
   image_url,
+  post_type,
   status,
   created_at,
   businesses!inner (
@@ -51,7 +66,8 @@ const EXPLORE_POST_SELECT = `
     description,
     city,
     state,
-    verification_status
+    verification_status,
+    logo_url
   )
 `;
 
@@ -113,9 +129,13 @@ export function formatRelativePostTime(iso: string): string {
   });
 }
 
-function mapRowToExplorePost(row: ExplorePostRow): ExplorePost | null {
+function resolvePostType(row: ExplorePostRow): PostType {
+  return row.post_type === 'announcement' ? 'announcement' : 'photo';
+}
+
+function mapRowToConsumerPublishedPost(row: ExplorePostRow): ConsumerPublishedPost | null {
   const business = resolveBusinessRow(row.businesses);
-  if (!business || !row.image_url || row.status !== 'published') {
+  if (!business || row.status !== 'published') {
     return null;
   }
 
@@ -123,23 +143,89 @@ function mapRowToExplorePost(row: ExplorePostRow): ExplorePost | null {
     return null;
   }
 
+  const postType = resolvePostType(row);
+  if (postType === 'photo' && !row.image_url) {
+    return null;
+  }
+
   return {
     id: row.id,
     businessId: business.id,
     businessName: business.name,
-    businessLogo: null,
+    businessLogo: resolveBusinessLogoUrl({ logoUrl: business.logo_url }) || null,
     category: business.category?.trim() || 'Local Business',
     distance: '',
     distanceMiles: 0,
     verified: true,
     initiallyFollowed: false,
     mediaType: 'photo',
-    mediaUri: row.image_url,
+    mediaUri: row.image_url?.trim() ?? '',
     caption: row.caption?.trim() ?? '',
     postedAt: formatRelativePostTime(row.created_at),
     likeCount: 0,
     commentCount: 0,
+    postType,
+    createdAt: row.created_at,
   };
+}
+
+function mapRowToExplorePost(row: ExplorePostRow): ExplorePost | null {
+  const mapped = mapRowToConsumerPublishedPost(row);
+  if (!mapped || mapped.postType !== 'photo' || !mapped.mediaUri) {
+    return null;
+  }
+  return mapped;
+}
+
+export async function getPublishedPostById(postId: string): Promise<GetPublishedPostByIdResult> {
+  const trimmedId = postId.trim();
+  if (!trimmedId) {
+    return { ok: false, code: 'not_found', message: 'Post not found.' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select(EXPLORE_POST_SELECT)
+      .eq('id', trimmedId)
+      .eq('status', 'published')
+      .eq('businesses.verification_status', 'verified')
+      .maybeSingle();
+
+    if (error) {
+      logDevError('getPublishedPostById', error);
+      return {
+        ok: false,
+        code: isNetworkError(error) ? 'network' : 'unexpected',
+        message: 'Unable to load this post right now.',
+      };
+    }
+
+    if (!data) {
+      return { ok: false, code: 'not_found', message: 'Post not found.' };
+    }
+
+    const post = mapRowToConsumerPublishedPost(data as unknown as ExplorePostRow);
+    if (!post) {
+      return { ok: false, code: 'not_found', message: 'Post not found.' };
+    }
+
+    const countsResult = await getPostsEngagementCounts([post.id]);
+    if (countsResult.ok) {
+      const engagement = countsResult.counts[post.id];
+      post.likeCount = engagement?.likeCount ?? 0;
+      post.commentCount = engagement?.commentCount ?? 0;
+    }
+
+    return { ok: true, post };
+  } catch (error) {
+    logDevError('getPublishedPostById', error);
+    return {
+      ok: false,
+      code: isNetworkError(error) ? 'network' : 'unexpected',
+      message: 'Unable to load this post right now.',
+    };
+  }
 }
 
 export async function getPublishedExplorePosts(): Promise<GetPublishedExplorePostsResult> {
@@ -165,7 +251,25 @@ export async function getPublishedExplorePosts(): Promise<GetPublishedExplorePos
       .map(mapRowToExplorePost)
       .filter((post): post is ExplorePost => post !== null);
 
-    return { ok: true, posts };
+    const postIds = posts.map((post) => post.id);
+    const [countsResult, likedResult] = await Promise.all([
+      getPostsEngagementCounts(postIds),
+      getUserLikedPostIds(postIds),
+    ]);
+
+    const counts = countsResult.ok ? countsResult.counts : {};
+    const likedPostIds = likedResult.ok ? likedResult.likedPostIds : new Set<string>();
+
+    const postsWithEngagement = posts.map((post) => {
+      const engagement = counts[post.id];
+      return {
+        ...post,
+        likeCount: engagement?.likeCount ?? 0,
+        commentCount: engagement?.commentCount ?? 0,
+      };
+    });
+
+    return { ok: true, posts: postsWithEngagement, likedPostIds };
   } catch (error) {
     logDevError('getPublishedExplorePosts', error);
     return {

@@ -17,6 +17,36 @@ import {
 
 let draft: EventDraft | null = null;
 
+let editingEventId: string | null = null;
+let originalEventImageUrl: string | null = null;
+
+export type EventEditSession = {
+  eventId: string;
+  originalImageUrl: string | null;
+};
+
+export function beginEventEdit(eventId: string, draftValues: EventDraft, imageUrl: string | null) {
+  editingEventId = eventId;
+  originalEventImageUrl = imageUrl;
+  draft = draftValues;
+}
+
+export function getEventEditSession(): EventEditSession | null {
+  if (!editingEventId) {
+    return null;
+  }
+
+  return {
+    eventId: editingEventId,
+    originalImageUrl: originalEventImageUrl,
+  };
+}
+
+export function clearEventEditSession() {
+  editingEventId = null;
+  originalEventImageUrl = null;
+}
+
 export function setEventDraft(next: EventDraft) {
   draft = next;
 }
@@ -27,6 +57,7 @@ export function getEventDraft(): EventDraft | null {
 
 export function clearEventDraft() {
   draft = null;
+  clearEventEditSession();
 }
 
 export function createEmptyEventDraft(): EventDraft {

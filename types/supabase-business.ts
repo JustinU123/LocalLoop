@@ -34,6 +34,8 @@ export type BusinessRow = {
   logo_storage_path?: string | null;
   cover_image_url?: string | null;
   cover_storage_path?: string | null;
+  /** Present after 20260815_profile_completion_celebrated migration */
+  profile_completion_celebrated_at?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -10,7 +10,7 @@ import {
 
 import type { Business } from '@/data/businesses';
 import type { ExplorePost, ExplorePostMediaType } from '@/data/explore-posts';
-import type { Promotion } from '@/data/promotions';
+import type { PromotionFeedItem } from '@/types/promotion-feed';
 
 export type SavedBusinessItem = {
   id: string;
@@ -52,9 +52,9 @@ type SavedItemsContextValue = {
   unsavePost: (postId: string) => void;
   togglePostSaved: (post: ExplorePost) => void;
   isPostSaved: (postId: string) => boolean;
-  savePromotion: (promotion: Promotion) => void;
+  savePromotion: (promotion: PromotionFeedItem) => void;
   unsavePromotion: (promotionId: string) => void;
-  togglePromotionSaved: (promotion: Promotion) => void;
+  togglePromotionSaved: (promotion: PromotionFeedItem) => void;
   isPromotionSaved: (promotionId: string) => boolean;
 };
 
@@ -83,7 +83,7 @@ function toSavedPost(post: ExplorePost): SavedPostItem {
   };
 }
 
-function toSavedPromotion(promotion: Promotion): SavedPromotionItem {
+function toSavedPromotion(promotion: PromotionFeedItem): SavedPromotionItem {
   return {
     id: promotion.id,
     businessId: promotion.businessId,
@@ -172,7 +172,7 @@ export function SavedItemsProvider({ children }: { children: ReactNode }) {
 
   const isPostSaved = useCallback((postId: string) => savedPosts.has(postId), [savedPosts]);
 
-  const savePromotion = useCallback((promotion: Promotion) => {
+  const savePromotion = useCallback((promotion: PromotionFeedItem) => {
     setSavedPromotions((prev) => {
       if (prev.has(promotion.id)) return prev;
       const next = new Map(prev);
@@ -190,7 +190,7 @@ export function SavedItemsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const togglePromotionSaved = useCallback((promotion: Promotion) => {
+  const togglePromotionSaved = useCallback((promotion: PromotionFeedItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSavedPromotions((prev) => {
       const next = new Map(prev);

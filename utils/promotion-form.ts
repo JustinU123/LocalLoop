@@ -5,8 +5,45 @@ import {
   type PromotionStatusLabel,
 } from '@/types/promotion-draft';
 import { PROMOTION_FIELD_LIMITS } from '@/constants/promotion-create';
+import {
+  combineDateAndTime,
+  formatDisplayDate,
+  formatDisplayTime,
+  parseIsoDate,
+  startOfDay,
+} from '@/utils/date-time';
 
 let draft: PromotionDraft | null = null;
+
+let editingPromotionId: string | null = null;
+let originalPromotionImageUrl: string | null = null;
+
+export type PromotionEditSession = {
+  promotionId: string;
+  originalImageUrl: string | null;
+};
+
+export function beginPromotionEdit(promotionId: string, draftValues: PromotionDraft, imageUrl: string | null) {
+  editingPromotionId = promotionId;
+  originalPromotionImageUrl = imageUrl;
+  draft = draftValues;
+}
+
+export function getPromotionEditSession(): PromotionEditSession | null {
+  if (!editingPromotionId) {
+    return null;
+  }
+
+  return {
+    promotionId: editingPromotionId,
+    originalImageUrl: originalPromotionImageUrl,
+  };
+}
+
+export function clearPromotionEditSession() {
+  editingPromotionId = null;
+  originalPromotionImageUrl = null;
+}
 
 export function setPromotionDraft(next: PromotionDraft) {
   draft = next;
@@ -18,60 +55,53 @@ export function getPromotionDraft(): PromotionDraft | null {
 
 export function clearPromotionDraft() {
   draft = null;
-}
-
-export function startOfDay(date: Date): Date {
-  const next = new Date(date);
-  next.setHours(0, 0, 0, 0);
-  return next;
-}
-
-export function parsePromotionDate(value: string | null): Date | null {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-export function serializePromotionDate(date: Date): string {
-  return startOfDay(date).toISOString();
+  clearPromotionEditSession();
 }
 
 export function formatPromotionDate(value: string | null): string {
-  const parsed = parsePromotionDate(value);
-  if (!parsed) {
-    return 'Select date';
-  }
-
-  return parsed.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  return formatDisplayDate(value);
 }
 
-export function getPromotionStatus(
-  startDate: string | null,
-  endDate: string | null,
-): PromotionStatusLabel {
-  const start = parsePromotionDate(startDate);
-  const end = parsePromotionDate(endDate);
-  if (!start || !end) {
+export function getPromotionStartDateTime(
+  form: Pick<PromotionDraft, 'startDate' | 'startTime'>,
+): Date | null {
+  return combineDateAndTime(form.startDate, form.startTime);
+}
+
+export function getPromotionEndDateTime(
+  form: Pick<PromotionDraft, 'endDate' | 'endTime'>,
+): Date | null {
+  return combineDateAndTime(form.endDate, form.endTime);
+}
+
+export function formatPromotionScheduleLabel(form: PromotionDraft): string {
+  const startDate = formatDisplayDate(form.startDate);
+  const endDate = formatDisplayDate(form.endDate);
+  const startTime = formatDisplayTime(form.startTime);
+  const endTime = formatDisplayTime(form.endTime);
+
+  if (form.startDate && form.endDate && form.startDate !== form.endDate) {
+    return `${startDate} ${startTime} – ${endDate} ${endTime}`;
+  }
+
+  return `${startDate} · ${startTime} – ${endTime}`;
+}
+
+export function getPromotionStatus(form: PromotionDraft): PromotionStatusLabel {
+  const startDateTime = getPromotionStartDateTime(form);
+  const endDateTime = getPromotionEndDateTime(form);
+
+  if (!startDateTime || !endDateTime) {
     return 'Starts Soon';
   }
 
-  const today = startOfDay(new Date());
-  const startDay = startOfDay(start);
-  const endDay = startOfDay(end);
+  const now = Date.now();
 
-  if (today < startDay) {
+  if (now < startDateTime.getTime()) {
     return 'Starts Soon';
   }
 
-  if (today > endDay) {
+  if (now > endDateTime.getTime()) {
     return 'Expired';
   }
 
@@ -84,7 +114,9 @@ export function isPromotionFormEmpty(form: PromotionDraft): boolean {
     !form.title.trim() &&
     !form.description.trim() &&
     !form.startDate &&
+    !form.startTime &&
     !form.endDate &&
+    !form.endTime &&
     !form.promotionCode.trim() &&
     !form.redemptionInstructions.trim() &&
     !form.termsAndConditions.trim()
@@ -113,16 +145,34 @@ export function validatePromotionForm(form: PromotionDraft): {
     errors.startDate = 'Start date is required.';
   }
 
+  if (!form.startTime) {
+    errors.startTime = 'Start time is required.';
+  }
+
   if (!form.endDate) {
     errors.endDate = 'End date is required.';
   }
 
-  const start = parsePromotionDate(form.startDate);
-  const end = parsePromotionDate(form.endDate);
+  if (!form.endTime) {
+    errors.endTime = 'End time is required.';
+  }
 
-  if (start && end && startOfDay(start) > startOfDay(end)) {
+  const startDate = parseIsoDate(form.startDate);
+  const endDate = parseIsoDate(form.endDate);
+
+  if (startDate && endDate && startOfDay(startDate) > startOfDay(endDate)) {
     errors.startDate = 'Start date cannot be after end date.';
     errors.endDate = 'End date cannot be before start date.';
+  }
+
+  const startDateTime = getPromotionStartDateTime(form);
+  const endDateTime = getPromotionEndDateTime(form);
+
+  if (startDateTime && endDateTime && endDateTime.getTime() < startDateTime.getTime()) {
+    errors.endTime = 'End must be after start date and time.';
+    if (!errors.startDate && !errors.endDate) {
+      errors.startDate = 'Start must be before end date and time.';
+    }
   }
 
   if (form.promotionCode.length > PROMOTION_FIELD_LIMITS.promotionCode) {

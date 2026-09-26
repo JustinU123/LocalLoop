@@ -7,6 +7,7 @@ import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/busine
 import type { ExplorePost } from '@/data/explore-posts';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { formatEngagementCount } from '@/utils/format-engagement-count';
 
 type ExplorePostCardProps = {
   post: ExplorePost;
@@ -15,6 +16,7 @@ type ExplorePostCardProps = {
   liked: boolean;
   saved: boolean;
   likeCount: number;
+  commentCount: number;
   onToggleLike: () => void;
   onToggleSave: () => void;
   onToggleFollow: () => void;
@@ -23,13 +25,6 @@ type ExplorePostCardProps = {
   onPressShare: () => void;
 };
 
-function formatCount(count: number): string {
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1).replace(/\.0$/, '')}K`;
-  }
-  return `${count}`;
-}
-
 export function ExplorePostCard({
   post,
   showDistance,
@@ -37,6 +32,7 @@ export function ExplorePostCard({
   liked,
   saved,
   likeCount,
+  commentCount,
   onToggleLike,
   onToggleSave,
   onToggleFollow,
@@ -74,7 +70,7 @@ export function ExplorePostCard({
                 color={liked ? theme.coral : theme.textSecondary}
               />
               <Text style={[styles.actionCount, liked && styles.actionCountActive]}>
-                {formatCount(likeCount)}
+                {formatEngagementCount(likeCount)}
               </Text>
             </Pressable>
 
@@ -85,7 +81,7 @@ export function ExplorePostCard({
               accessibilityRole="button"
               accessibilityLabel="View comments">
               <Ionicons name="chatbubble-outline" size={23} color={theme.textSecondary} />
-              <Text style={styles.actionCount}>{formatCount(post.commentCount)}</Text>
+              <Text style={styles.actionCount}>{formatEngagementCount(commentCount)}</Text>
             </Pressable>
 
             <Pressable

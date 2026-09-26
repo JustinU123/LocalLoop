@@ -1,13 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountScreenHeader } from '@/components/account/account-screen-header';
 import { PrimaryButton } from '@/components/account/primary-button';
+import { BusinessSuccessOverlay } from '@/components/business/business-success-overlay';
 import { FormFieldWithCounter } from '@/components/business/form-field-with-counter';
 import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/business-theme';
 import {
@@ -25,6 +32,9 @@ import {
   getBusinessMediaDraft,
   type BusinessMediaDraft,
 } from '@/utils/business-media-draft';
+import { openBusinessProfile } from '@/utils/open-business-profile';
+
+type PhotoPublishPhase = 'idle' | 'publishing' | 'success';
 
 function formatDuration(seconds?: number | null): string {
   if (!seconds) {
@@ -44,7 +54,11 @@ export default function BusinessMediaPreviewScreen() {
   const [draft, setDraft] = useState<BusinessMediaDraft | null>(null);
   const [caption, setCaption] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [photoPublishPhase, setPhotoPublishPhase] = useState<PhotoPublishPhase>('idle');
+  const [publishedBusinessId, setPublishedBusinessId] = useState<string | null>(null);
   const publishInFlightRef = useRef(false);
+
+  const publishOverlayActive = photoPublishPhase !== 'idle';
 
   useEffect(() => {
     const nextDraft = getBusinessMediaDraft();
@@ -80,6 +94,22 @@ export default function BusinessMediaPreviewScreen() {
     Alert.alert('Coming next', continueMessage);
   };
 
+  const handleDoneAfterPublish = () => {
+    router.replace('/(business-tabs)');
+  };
+
+  const handleViewPostAfterPublish = () => {
+    if (!publishedBusinessId) {
+      return;
+    }
+
+    router.replace('/(business-tabs)');
+    openBusinessProfile(publishedBusinessId, {
+      tab: 'posts',
+      source: 'photo-post-publish',
+    });
+  };
+
   const handlePublish = async () => {
     if (!draft || draft.type !== 'photo' || publishInFlightRef.current || isPublishing) {
       return;
@@ -92,6 +122,7 @@ export default function BusinessMediaPreviewScreen() {
 
     publishInFlightRef.current = true;
     setIsPublishing(true);
+    setPhotoPublishPhase('publishing');
 
     try {
       const result = await publishPhotoPost({
@@ -101,21 +132,21 @@ export default function BusinessMediaPreviewScreen() {
       });
 
       if (!result.ok) {
+        if (__DEV__) {
+          console.error('[business-media-preview] publish failed', {
+            code: result.code,
+            message: result.message,
+          });
+        }
+        setPhotoPublishPhase('idle');
         Alert.alert('Unable to publish', result.message);
         return;
       }
 
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       clearBusinessMediaDraft();
       setCaption('');
-      setDraft(null);
-
-      Alert.alert('Post published', 'Your photo post is live on your business profile.', [
-        {
-          text: 'View Profile',
-          onPress: () => router.replace('/(business-tabs)/business'),
-        },
-      ]);
+      setPublishedBusinessId(result.post.businessId);
+      setPhotoPublishPhase('success');
     } finally {
       publishInFlightRef.current = false;
       setIsPublishing(false);
@@ -123,7 +154,7 @@ export default function BusinessMediaPreviewScreen() {
   };
 
   const handleChange = () => {
-    if (!draft) {
+    if (!draft || publishOverlayActive) {
       return;
     }
 
@@ -132,8 +163,25 @@ export default function BusinessMediaPreviewScreen() {
   };
 
   const handleCancel = () => {
+    if (publishOverlayActive) {
+      return;
+    }
+
     clearBusinessMediaDraft();
     router.back();
+  };
+
+  const handleHeaderBack = () => {
+    if (photoPublishPhase === 'publishing') {
+      return;
+    }
+
+    if (photoPublishPhase === 'success') {
+      handleDoneAfterPublish();
+      return;
+    }
+
+    handleCancel();
   };
 
   if (!draft || !canCreate) {
@@ -145,9 +193,12 @@ export default function BusinessMediaPreviewScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <AccountScreenHeader title={title} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <AccountScreenHeader title={title} onBackPress={handleHeaderBack} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        scrollEnabled={!publishOverlayActive}>
         <View style={styles.previewCard}>
           {draft.type === 'photo' ? (
             <Image source={{ uri: draft.uri }} style={styles.photoPreview} contentFit="cover" />
@@ -172,7 +223,7 @@ export default function BusinessMediaPreviewScreen() {
             maxLength={PHOTO_POST_CAPTION_MAX_LENGTH}
             placeholder="Add an optional caption for your photo post."
             multiline
-            editable={!isPublishing}
+            editable={!publishOverlayActive}
             helperText="Caption is optional, but your photo is required to publish."
           />
         ) : null}
@@ -184,20 +235,40 @@ export default function BusinessMediaPreviewScreen() {
               onPress={() => {
                 void handlePublish();
               }}
-              loading={isPublishing}
-              disabled={isPublishing || !draft.uri}
+              loading={isPublishing && photoPublishPhase === 'publishing'}
+              disabled={publishOverlayActive || !draft.uri}
             />
           ) : (
             <PrimaryButton label="Continue" onPress={handleContinue} />
           )}
-          <Pressable onPress={handleChange} disabled={isPublishing} style={styles.secondaryButton}>
+          <Pressable
+            onPress={handleChange}
+            disabled={publishOverlayActive}
+            style={styles.secondaryButton}>
             <Text style={styles.secondaryButtonText}>{changeLabel}</Text>
           </Pressable>
-          <Pressable onPress={handleCancel} disabled={isPublishing} style={styles.cancelButton}>
+          <Pressable
+            onPress={handleCancel}
+            disabled={publishOverlayActive}
+            style={styles.cancelButton}>
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
         </View>
       </ScrollView>
+
+      <BusinessSuccessOverlay
+        visible={publishOverlayActive}
+        phase={photoPublishPhase === 'publishing' ? 'loading' : 'success'}
+        loadingTitle="Publishing…"
+        loadingMessage="Uploading your photo and saving your post."
+        successTitle="Post published!"
+        successMessage="Your post is now live."
+        primaryAction={{ label: 'View Post', onPress: handleViewPostAfterPublish }}
+        secondaryAction={{ label: 'Done', onPress: handleDoneAfterPublish }}
+        accessibilityLabel={
+          photoPublishPhase === 'publishing' ? 'Publishing your post' : 'Post published'
+        }
+      />
     </SafeAreaView>
   );
 }

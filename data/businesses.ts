@@ -1,4 +1,5 @@
 import { PROMOTION_BUSINESSES } from '@/data/promotion-businesses';
+import type { BusinessEvent } from '@/types/supabase-event';
 
 export type BusinessVideo = {
   id: string;
@@ -9,9 +10,11 @@ export type BusinessVideo = {
 };
 
 export type MenuItem = {
+  id?: string;
   name: string;
   price: string;
   description: string;
+  image?: string;
 };
 
 export type MenuSection = {
@@ -30,7 +33,8 @@ export type BusinessReview = {
 
 export type BusinessPost = {
   id: string;
-  image: string;
+  postType?: 'photo' | 'announcement';
+  image?: string;
   caption: string;
   postedAt: string;
 };
@@ -40,7 +44,15 @@ export type BusinessPromotionItem = {
   title: string;
   description: string;
   expiresLabel: string;
+  scheduleLabel: string;
   image: string;
+  startAt: string;
+  endAt: string;
+  promotionCode?: string;
+  redemptionInstructions?: string;
+  termsAndConditions?: string;
+  /** Owner-only public profile preview; not returned to consumers. */
+  ownerPreviewScheduled?: boolean;
 };
 
 export type Business = {
@@ -69,8 +81,11 @@ export type Business = {
   videos: BusinessVideo[];
   posts: BusinessPost[];
   promotions: BusinessPromotionItem[];
+  events: BusinessEvent[];
   menu: MenuSection[];
   reviews: BusinessReview[];
+  /** Set when loaded from Supabase public profile (for ownership UX). */
+  ownerUserId?: string;
 };
 
 const AVATARS = [
@@ -206,8 +221,8 @@ export function getAppleMapsDirectionsUrl(latitude: number, longitude: number): 
   return `maps://?daddr=${latitude},${longitude}`;
 }
 
-type BusinessSeed = Omit<Business, 'followerCount' | 'posts' | 'promotions'> &
-  Partial<Pick<Business, 'followerCount' | 'posts' | 'promotions'>>;
+type BusinessSeed = Omit<Business, 'followerCount' | 'posts' | 'promotions' | 'events'> &
+  Partial<Pick<Business, 'followerCount' | 'posts' | 'promotions' | 'events'>>;
 
 function enrichBusinessProfile(business: BusinessSeed): Business {
   const posts =
@@ -219,6 +234,9 @@ function enrichBusinessProfile(business: BusinessSeed): Business {
       postedAt: `${index + 1}d ago`,
     }));
 
+  const mockPromoEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const mockPromoStart = new Date().toISOString();
+
   const promotions =
     business.promotions ??
     business.menu.flatMap((section, sectionIndex) =>
@@ -227,6 +245,9 @@ function enrichBusinessProfile(business: BusinessSeed): Business {
         title: item.name,
         description: item.description,
         expiresLabel: 'Ongoing',
+        scheduleLabel: 'See in store for details',
+        startAt: mockPromoStart,
+        endAt: mockPromoEnd,
         image: business.image,
       })),
     );
@@ -236,6 +257,7 @@ function enrichBusinessProfile(business: BusinessSeed): Business {
     followerCount: business.followerCount ?? Math.max(120, Math.round(business.reviewCount * 0.35)),
     posts,
     promotions,
+    events: business.events ?? [],
   };
 }
 

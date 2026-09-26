@@ -15,6 +15,36 @@ import { formatDisplayDate, isValidUrl, parseIsoDate, startOfDay, todayStart } f
 
 let draft: ProductItemDraft | null = null;
 
+let editingMenuItemId: string | null = null;
+let originalMenuItemImageUrl: string | null = null;
+
+export type MenuItemEditSession = {
+  menuItemId: string;
+  originalImageUrl: string | null;
+};
+
+export function beginMenuItemEdit(menuItemId: string, draftValues: ProductItemDraft, imageUrl: string | null) {
+  editingMenuItemId = menuItemId;
+  originalMenuItemImageUrl = imageUrl;
+  draft = draftValues;
+}
+
+export function getMenuItemEditSession(): MenuItemEditSession | null {
+  if (!editingMenuItemId) {
+    return null;
+  }
+
+  return {
+    menuItemId: editingMenuItemId,
+    originalImageUrl: originalMenuItemImageUrl,
+  };
+}
+
+export function clearMenuItemEditSession() {
+  editingMenuItemId = null;
+  originalMenuItemImageUrl = null;
+}
+
 export function setProductItemDraft(next: ProductItemDraft) {
   draft = next;
 }
@@ -25,6 +55,7 @@ export function getProductItemDraft(): ProductItemDraft | null {
 
 export function clearProductItemDraft() {
   draft = null;
+  clearMenuItemEditSession();
 }
 
 export function createEmptyProductItemDraft(): ProductItemDraft {

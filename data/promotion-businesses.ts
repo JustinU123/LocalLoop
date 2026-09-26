@@ -53,6 +53,21 @@ function buildReviews(rating: number): BusinessReview[] {
   ];
 }
 
+const MOCK_PROMOTION_START = '2026-03-20T09:00:00.000Z';
+const MOCK_PROMOTION_END = '2026-04-01T21:00:00.000Z';
+
+function mockPromotionItem(
+  item: Omit<BusinessPromotionItem, 'scheduleLabel' | 'startAt' | 'endAt'> &
+    Partial<Pick<BusinessPromotionItem, 'scheduleLabel' | 'startAt' | 'endAt'>>,
+): BusinessPromotionItem {
+  return {
+    ...item,
+    scheduleLabel: item.scheduleLabel ?? item.expiresLabel,
+    startAt: item.startAt ?? MOCK_PROMOTION_START,
+    endAt: item.endAt ?? MOCK_PROMOTION_END,
+  };
+}
+
 function buildPosts(photos: string[], name: string): BusinessPost[] {
   return photos.slice(0, 3).map((image, index) => ({
     id: `post-${index + 1}`,
@@ -98,6 +113,7 @@ function createPromotionBusiness(seed: PromotionBusinessSeed): Business {
     reviews: buildReviews(seed.rating),
     posts: buildPosts(seed.photos, seed.name),
     promotions: seed.promotions,
+    events: [],
   };
 }
 
@@ -128,13 +144,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1511920170033-f8396924c10b?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'beanie-promo-1',
         title: 'Free pastry with any large drink',
         description: 'Start your morning with a fresh pastry on us when you order any large coffee drink.',
         expiresLabel: 'Ends today',
         image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -161,13 +177,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1441986300917-64676bd846d1?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'eastside-promo-1',
         title: '20% off all jackets this weekend',
         description: 'Refresh your wardrobe with curated vintage outerwear at a special weekend rate.',
         expiresLabel: 'Ends Sunday',
         image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -195,13 +211,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'casa-promo-1',
         title: 'Buy 2 tacos, get 1 free',
         description: 'Mix and match any street tacos from the evening menu and enjoy a third on the house.',
         expiresLabel: 'Ends in 2 days',
         image: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -228,13 +244,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'harbor-promo-1',
         title: '$5 off any large pizza',
         description: 'Valid for dine-in and pickup orders tonight only.',
         expiresLabel: 'Ends tonight',
         image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -260,13 +276,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'sunny-promo-1',
         title: '15% off morning bundles',
         description: 'Grab a coffee, pastry, and fruit cup bundle before 11 AM and save on your breakfast run.',
         expiresLabel: 'Ends tomorrow',
         image: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -292,13 +308,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'river-promo-1',
         title: 'Buy one, get one half off',
         description: 'Mix new releases and staff picks — second book is half price all week long.',
         expiresLabel: 'Ends Friday',
         image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -325,13 +341,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1487530811647-569962357165?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'bloom-promo-1',
         title: 'Free delivery on orders $40+',
         description: 'Send locally grown arrangements across town with complimentary same-day delivery.',
         expiresLabel: 'Ends in 3 days',
         image: 'https://images.unsplash.com/photo-1487530811647-569962357165?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -357,13 +373,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'green-promo-1',
         title: 'First class free for new students',
         description: 'Try any community flow or restorative session on the house — mat rental included.',
         expiresLabel: 'Ends in 5 days',
         image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({
@@ -389,13 +405,13 @@ export const PROMOTION_BUSINESSES: Business[] = [
       'https://images.unsplash.com/photo-1619983081563-430f63602706?w=600&q=80&auto=format&fit=crop',
     ],
     promotions: [
-      {
+      mockPromotionItem({
         id: 'mile-promo-1',
         title: '10% off all vinyl this week',
         description: 'Dig through new arrivals and local pressings with a limited-time crate-digger discount.',
         expiresLabel: 'Ends Saturday',
         image: 'https://images.unsplash.com/photo-1619983081563-430f63602706?w=900&q=80&auto=format&fit=crop',
-      },
+      }),
     ],
   }),
   createPromotionBusiness({

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { HomeBusiness, HomeCategoryChip } from '@/types/home-business';
+import { resolveBusinessCoverUrl } from '@/utils/business-branding-display';
 
 export type HomeDiscoveryErrorCode = 'network' | 'unexpected';
 
@@ -14,6 +15,8 @@ type VerifiedBusinessRow = {
   description: string | null;
   city: string | null;
   state: string | null;
+  logo_url: string | null;
+  cover_image_url: string | null;
   created_at: string;
 };
 
@@ -24,7 +27,7 @@ type PublishedPostRow = {
 };
 
 const VERIFIED_BUSINESS_SELECT =
-  'id, name, category, description, city, state, created_at';
+  'id, name, category, description, city, state, logo_url, cover_image_url, created_at';
 
 const CATEGORY_ICON_MAP: Record<string, HomeCategoryChip> = {
   food: { id: 'food', label: 'Food', icon: 'restaurant' },
@@ -208,6 +211,12 @@ export async function getHomeDiscoveryBusinesses(): Promise<GetHomeDiscoveryResu
       (row): HomeBusiness => {
         const latestPost = latestPostByBusiness.get(row.id);
 
+        const coverImageUrl = resolveBusinessCoverUrl({
+          coverUrl: row.cover_image_url,
+          logoUrl: row.logo_url,
+          legacyFallback: latestPost?.imageUrl ?? null,
+        });
+
         return {
           id: row.id,
           name: row.name,
@@ -215,7 +224,7 @@ export async function getHomeDiscoveryBusinesses(): Promise<GetHomeDiscoveryResu
           description: row.description,
           city: row.city,
           state: row.state,
-          coverImageUrl: latestPost?.imageUrl ?? null,
+          coverImageUrl: coverImageUrl || null,
           latestPostAt: latestPost?.createdAt ?? null,
           createdAt: row.created_at,
         };

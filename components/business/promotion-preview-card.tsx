@@ -6,6 +6,7 @@ import { BrandFonts, BrandRadius, type AppThemeTokens } from '@/constants/busine
 import type { PromotionDraft, PromotionStatusLabel } from '@/types/promotion-draft';
 import { useAppTheme } from '@/contexts/app-theme-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { formatDisplayTime } from '@/utils/date-time';
 import { formatPromotionDate, getPromotionStatus } from '@/utils/promotion-form';
 
 type PromotionPreviewCardProps = {
@@ -44,7 +45,7 @@ export function PromotionPreviewCard({
 }: PromotionPreviewCardProps) {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const status = getPromotionStatus(draft.startDate, draft.endDate);
+  const status = getPromotionStatus(draft);
   const badge = statusStyles(status, theme);
 
   return (
@@ -97,11 +98,15 @@ export function PromotionPreviewCard({
         <View style={styles.dateRow}>
           <View style={styles.dateItem}>
             <Text style={styles.metaLabel}>Starts</Text>
-            <Text style={styles.metaValue}>{formatPromotionDate(draft.startDate)}</Text>
+            <Text style={styles.metaValue}>
+              {formatPromotionDate(draft.startDate)} · {formatDisplayTime(draft.startTime)}
+            </Text>
           </View>
           <View style={styles.dateItem}>
             <Text style={styles.metaLabel}>Ends</Text>
-            <Text style={styles.metaValue}>{formatPromotionDate(draft.endDate)}</Text>
+            <Text style={styles.metaValue}>
+              {formatPromotionDate(draft.endDate)} · {formatDisplayTime(draft.endTime)}
+            </Text>
           </View>
         </View>
 

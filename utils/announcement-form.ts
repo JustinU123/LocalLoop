@@ -25,6 +25,24 @@ export function createEmptyAnnouncementDraft(): AnnouncementDraft {
   return { ...EMPTY_ANNOUNCEMENT_DRAFT };
 }
 
+export function buildAnnouncementCaption(title: string, message: string): string {
+  return `${title.trim()}\n\n${message.trim()}`;
+}
+
+export function parseAnnouncementCaption(caption: string): { title: string; message: string } {
+  const trimmed = caption.trim();
+  const separatorIndex = trimmed.indexOf('\n\n');
+
+  if (separatorIndex === -1) {
+    return { title: '', message: trimmed };
+  }
+
+  return {
+    title: trimmed.slice(0, separatorIndex).trim(),
+    message: trimmed.slice(separatorIndex + 2).trim(),
+  };
+}
+
 export function getAnnouncementCategoryLabel(category: AnnouncementCategory | ''): string {
   if (!category) {
     return 'Announcement';

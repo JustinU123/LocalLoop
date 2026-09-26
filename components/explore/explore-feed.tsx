@@ -11,17 +11,25 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
 import { LocalLoopWordmark } from '@/components/brand/LocalLoopWordmark';
+import { BusinessSearchPanel } from '@/components/business/business-search-panel';
 import { ExploreFilterToggle } from '@/components/explore/explore-filter-toggle';
 import { ExplorePostCard } from '@/components/explore/explore-post-card';
+import { ExplorePostCommentsSheet } from '@/components/explore/explore-post-comments-sheet';
 import { BrandFonts, type AppThemeTokens } from '@/constants/business-theme';
 import type { ExplorePost, ExploreSegment } from '@/data/explore-posts';
+import { useAccountMode } from '@/contexts/account-mode-context';
+import { useFollowedBusinesses } from '@/contexts/followed-businesses-context';
+import { useLocationSettings } from '@/contexts/location-settings-context';
 import { useSavedItems } from '@/contexts/saved-items-context';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { likePost, unlikePost } from '@/services/postEngagement';
 import {
   filterExplorePostsForSegment,
   getPublishedExplorePosts,
@@ -48,10 +56,15 @@ export function ExploreFeed({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [followedBusinessIds, setFollowedBusinessIds] = useState<Set<string>>(() => new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const { userId, businessRecord } = useAccountMode();
+  const { isFollowing, toggleFollow } = useFollowedBusinesses();
+  const { coordinates } = useLocationSettings();
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const { isPostSaved, togglePostSaved } = useSavedItems();
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
+  const [commentsPost, setCommentsPost] = useState<ExplorePost | null>(null);
   const hasLoadedOnceRef = useRef(false);
 
   const loadPosts = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
@@ -81,15 +94,11 @@ export function ExploreFeed({
 
     setErrorMessage(null);
     setAllPosts(result.posts);
-    setLikeCounts((current) => {
-      const next = { ...current };
-      for (const post of result.posts) {
-        if (next[post.id] === undefined) {
-          next[post.id] = post.likeCount;
-        }
-      }
-      return next;
-    });
+    setLikeCounts(Object.fromEntries(result.posts.map((post) => [post.id, post.likeCount])));
+    setCommentCounts(
+      Object.fromEntries(result.posts.map((post) => [post.id, post.commentCount])),
+    );
+    setLikedIds(new Set(result.likedPostIds));
   }, []);
 
   useFocusEffect(
@@ -101,55 +110,72 @@ export function ExploreFeed({
     }, [loadPosts]),
   );
 
-  const posts = useMemo(
-    () => filterExplorePostsForSegment(allPosts, segment, followedBusinessIds),
-    [allPosts, segment, followedBusinessIds],
-  );
+  const posts = useMemo(() => {
+    const followedBusinessIds = new Set(
+      allPosts.filter((post) => isFollowing(post.businessId)).map((post) => post.businessId),
+    );
+    return filterExplorePostsForSegment(allPosts, segment, followedBusinessIds);
+  }, [allPosts, segment, isFollowing]);
 
-  const toggleLike = useCallback((post: ExplorePost) => {
+  const isSearchActive = searchQuery.trim().length >= 2;
+
+  const toggleLike = useCallback(async (post: ExplorePost) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const wasLiked = likedIds.has(post.id);
+    const previousCount = likeCounts[post.id] ?? post.likeCount;
+
     setLikedIds((prev) => {
       const next = new Set(prev);
-      const liked = next.has(post.id);
-
-      if (liked) {
+      if (wasLiked) {
         next.delete(post.id);
-        setLikeCounts((counts) => ({
-          ...counts,
-          [post.id]: Math.max(0, (counts[post.id] ?? post.likeCount) - 1),
-        }));
       } else {
         next.add(post.id);
-        setLikeCounts((counts) => ({
-          ...counts,
-          [post.id]: (counts[post.id] ?? post.likeCount) + 1,
-        }));
-      }
-
-      return next;
-    });
-  }, []);
-
-  const toggleFollow = useCallback((businessId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setFollowedBusinessIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(businessId)) {
-        next.delete(businessId);
-      } else {
-        next.add(businessId);
       }
       return next;
     });
-  }, []);
+    setLikeCounts((counts) => ({
+      ...counts,
+      [post.id]: wasLiked ? Math.max(0, previousCount - 1) : previousCount + 1,
+    }));
+
+    const result = wasLiked ? await unlikePost(post.id) : await likePost(post.id);
+    if (!result.ok) {
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) {
+          next.add(post.id);
+        } else {
+          next.delete(post.id);
+        }
+        return next;
+      });
+      setLikeCounts((counts) => ({
+        ...counts,
+        [post.id]: previousCount,
+      }));
+      Alert.alert(
+        'Unable to update like',
+        result.code === 'unauthenticated'
+          ? 'Sign in to like posts.'
+          : 'Please try again in a moment.',
+      );
+    }
+  }, [likedIds, likeCounts]);
 
   const handleViewBusiness = useCallback((businessId: string, postId?: string) => {
     openBusinessProfile(businessId, { postId, source: 'explore' });
   }, []);
 
-  const handleComments = useCallback(() => {
+  const handleComments = useCallback((post: ExplorePost) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Comments coming soon', 'Comment threads will arrive in a future update.');
+    setCommentsPost(post);
+  }, []);
+
+  const handleCommentCountChange = useCallback((postId: string, count: number) => {
+    setCommentCounts((counts) => ({
+      ...counts,
+      [postId]: Math.max(0, count),
+    }));
   }, []);
 
   const handleShare = useCallback(async (post: ExplorePost) => {
@@ -168,22 +194,26 @@ export function ExploreFeed({
       <ExplorePostCard
         post={item}
         showDistance={false}
-        isFollowing={followedBusinessIds.has(item.businessId)}
+        isFollowing={isFollowing(item.businessId)}
         liked={likedIds.has(item.id)}
         saved={isPostSaved(item.id)}
         likeCount={likeCounts[item.id] ?? item.likeCount}
-        onToggleLike={() => toggleLike(item)}
+        commentCount={commentCounts[item.id] ?? item.commentCount}
+        onToggleLike={() => {
+          void toggleLike(item);
+        }}
         onToggleSave={() => togglePostSaved(item)}
         onToggleFollow={() => toggleFollow(item.businessId)}
         onPressBusiness={() => handleViewBusiness(item.businessId, item.id)}
-        onPressComments={handleComments}
+        onPressComments={() => handleComments(item)}
         onPressShare={() => handleShare(item)}
       />
     ),
     [
-      followedBusinessIds,
+      isFollowing,
       likedIds,
       likeCounts,
+      commentCounts,
       toggleLike,
       togglePostSaved,
       isPostSaved,
@@ -199,7 +229,24 @@ export function ExploreFeed({
       {showWordmark ? <LocalLoopWordmark style={styles.headerWordmark} /> : null}
       {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
       <Text style={styles.title}>{title}</Text>
-      <ExploreFilterToggle selectedSegment={segment} onSelect={setSegment} />
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={18} color={styles.searchIcon.color} />
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search local businesses"
+          placeholderTextColor={styles.searchPlaceholder.color}
+          style={styles.searchInput}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+      </View>
+      {isSearchActive ? (
+        <BusinessSearchPanel query={searchQuery} origin={coordinates} />
+      ) : (
+        <ExploreFilterToggle selectedSegment={segment} onSelect={setSegment} />
+      )}
     </View>
   );
 
@@ -209,7 +256,7 @@ export function ExploreFeed({
         <>
           <Text style={styles.emptyTitle}>Follow local businesses to see their posts here.</Text>
           <Text style={styles.emptyText}>
-            Following is not connected to your account yet. Browse Nearby to discover verified
+            Follow businesses to see their posts here. Browse Nearby to discover verified
             businesses for now.
           </Text>
         </>
@@ -279,12 +326,24 @@ export function ExploreFeed({
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {commentsPost ? (
+        <ExplorePostCommentsSheet
+          key={commentsPost.id}
+          postId={commentsPost.id}
+          currentUserId={userId}
+          isBusinessOwnerOfPost={
+            businessRecord?.id != null && commentsPost.businessId === businessRecord.id
+          }
+          onClose={() => setCommentsPost(null)}
+          onCommentCountChange={handleCommentCountChange}
+        />
+      ) : null}
       <FlatList
-        data={posts}
+        data={isSearchActive ? [] : posts}
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
         ListHeaderComponent={listHeader}
-        ListEmptyComponent={listEmpty}
+        ListEmptyComponent={isSearchActive ? null : listEmpty}
         ListFooterComponent={listFooter}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -334,6 +393,30 @@ function createStyles(theme: AppThemeTokens) {
       fontFamily: BrandFonts.bold,
       letterSpacing: -0.8,
       marginTop: -6,
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: theme.surfaceElevated,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.borderLight,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    searchIcon: {
+      color: theme.textSecondary,
+    },
+    searchPlaceholder: {
+      color: theme.textSecondary,
+    },
+    searchInput: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 16,
+      fontFamily: BrandFonts.regular,
+      padding: 0,
     },
     loadingState: {
       flex: 1,

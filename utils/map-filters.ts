@@ -69,6 +69,8 @@ export type MapBusinessWithDistance = MapBusiness & {
   distanceLabel: string;
 };
 
+/** @see mergeAndFilterMapPins in `@/utils/map-pin-filters` for local + chain map pins */
+
 export function filterMapBusinesses({
   businesses,
   origin,
